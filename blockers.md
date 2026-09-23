@@ -1,14 +1,23 @@
-# Blockers
+# Blockers, decisions and bugs
 
-A running log of anything that stopped, slowed or misdirected work on the build board.
-One row per issue, added when it happens, not reconstructed later.
+The running record for this build. Three tables, one purpose each:
 
-**Scope:** things that actually occurred. Risks that have not yet bitten live in the
-watchlist at the bottom, deliberately kept out of the table so the table stays honest.
+| Section | What goes in it |
+|---|---|
+| **1 · Blockers** | Anything that stopped, slowed or misdirected work |
+| **2 · Decisions** | Every choice made — taken *and* still pending |
+| **3 · Bugs** | Defects found in code we wrote |
+
+Add the row when it happens, not later. A thing found and fixed in the same ten minutes still
+gets a row — the pattern across rows is the useful part, not any single entry.
+
+**Scope rule:** these tables hold things that actually happened or were actually decided. Risks
+that have not yet bitten live in the watchlist at the bottom, kept separate so the tables stay
+honest.
 
 ---
 
-## Log
+## 1 · Blockers
 
 | No | Blockers | Description | Date (When it occured) | Timestamp (when it occured) | Feedback | Suggestion to fix | Task_file_name |
 |---|---|---|---|---|---|---|---|
@@ -20,24 +29,56 @@ recorded, the time is anchored to the commit that fixed it and marked as such.
 
 ---
 
+## 2 · Decisions
+
+Both taken and pending. A pending decision with no row here is a decision that will get made by
+accident.
+
+| No | Decision | Description | Date (When it occured) | Timestamp (when it occured) | Status | Feedback | Consequence / follow-up | Task_file_name |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **Repo is public, and everything was pushed knowingly** | Pushed all 117 tracked files to `github.com/ShubhamChougale01/product_planning_agent` on `main`. Visibility could not be verified from the shell (`gh` not installed), so it was raised before pushing and confirmed as public with everything included. | 2026-09-23 | 15:35 IST | **Taken** | Verified before pushing: no `.venv`, no `.env`, no `projects/`, no `*.local.*`, and no credential values in any tracked file. The `ANTHROPIC_API_KEY` strings a naive grep finds are env-var *names*, which is exactly the distinction `tests/test_secrets/test_repo_hygiene.py` enforces. | **`Plan/CLAUDE.md` is now publicly indexable**, including the "about me" section and working preferences. Reversing this needs a history rewrite plus force-push, not a delete — the cost only grows as commits accumulate. `projects/` stays gitignored, so future ledgers holding verbatim client answers never leave the machine; **keep that exclusion**. | — (repo-level) |
+| 2 | **Config names a model tier, not a model id** | `config/model.yaml` says `tier: primary`; the tier→id table lives alone in `ppa/providers/model.py`. Three tiers: `primary` (Sonnet 5), `deep` (Opus 5), `cheap` (Haiku 4.5). | 2026-09-23 | 14:20 IST | **Taken** | T01's "no model string outside `providers/model.py`" gate is hollow if the id just moves into YAML. Naming a tier satisfies the intent rather than the letter. | Nothing may name a model anywhere else — there is a test that fails you. The `cheap` tier exists specifically to resolve decision #4 below. | `t01_environment_and_model_seam.md` |
+| 3 | **Package nested in `product_planning_agent/`, deps in a project-local `.venv`** | Code sits under `product_planning_agent/` beside `Plan/`, `tasks/` and `completed_tasks/`, matching the §2.6 diagram literally. Dependencies install into `.venv` there. | 2026-09-23 | 14:05 IST | **Taken** | User choice, offered as an explicit option at the start of T01. | Run everything through `.venv/Scripts/python.exe`, not the global interpreter. `.venv/` is gitignored. | `t01_environment_and_model_seam.md` |
+| 4 | **Which model tier for eval runs** (DESIGN.md §6.7 open decision #2) | Whether T34's eval suite runs on `cheap`, `primary` or `deep`. Deliberately deferred until real T34 runtimes are visible. | — | — | **PENDING — resolve at T34** | Do not guess this. The whole point of T34 is being able to measure whether a prompt change helped; picking a tier by intuition undermines that. | The `cheap` tier was pre-wired in T01, so resolving it is `PPA_MODEL_TIER=cheap` plus a measurement — no redesign. Tick DESIGN.md §6.7 and the board's open-decisions table when settled. | `t34_eval_suite_and_baseline.md` |
+| 5 | **Web search availability on subscription auth** (open decision #3) | Whether Guidance and Research modes ship with live research or degraded. | 2026-09-23 | 14:30 IST | **Resolved — YES** | Probed directly rather than assumed: tools invoked were `['ToolSearch', 'WebSearch']`, returning a live 2026-09-22 headline with sources. Written up in `product_planning_agent/docs/decisions/auth.md`. | T28 and T29 ship **with** research, not degraded. The `ResearchProvider` degradation path is still worth building — it covers search being rate-limited, erroring or config-disabled — but it is no longer the default. | `t01_environment_and_model_seam.md` |
+| 6 | **Do Coditas requirement templates exist?** (open decision #1) | Whether to adopt existing house templates or define our own. | 2026-09-23 | — (resolved on the board before T01 began) | **Resolved — NO** | Recorded in `tasks/readme.md`. | T04 defines our own templates and house style. | `t04_config_areas_profiles_house_style.md` |
+
+---
+
+## 3 · Bugs
+
+Defects in code we wrote — as distinct from a task file being wrong (that is a blocker) or a
+choice being open (that is a decision).
+
+| No | Bug | Description | Date (When it occured) | Timestamp (when it occured) | Feedback | Suggestion to fix | Task_file_name |
+|---|---|---|---|---|---|---|---|
+| — | _None yet._ | T01 shipped 16 passing tests with no known defects. First real entity logic arrives at T02; expect this table to start filling from there. | — | — | — | — | — |
+
+---
+
 ## Watchlist — risks that have not occurred yet
 
-These are not blockers. They are the things most likely to become row 3.
+Not blockers. The things most likely to become row 3 of section 1.
 
 | Risk | Bites at | Why it is not a blocker today | Early warning to watch for |
 |---|---|---|---|
-| **Subscription rate limits** | T23–T34, worst at T34 | The zero-cost path is verified and working. But subscription usage limits are a different constraint from API credits, and nothing in the plan accounts for them. T34 runs an eval suite repeatedly. | Model calls starting to fail or throttle during Phase D. Mitigation is already in place: flip `PPA_MODEL_TIER=cheap` (Haiku 4.5) or switch `auth_source` to `api_key` — one config line either way, by design. |
-| **Open decision #2 — eval model tier** | T34 | Deliberately deferred until T34 runtimes are visible. The `cheap` tier was pre-wired in T01 for exactly this. | Nothing to watch. Resolve it by measuring, not by guessing. |
-| **The task chain is almost entirely serial** | T13 onward | T02 fans out to T03/T04/T05, and T10–T12 can run in parallel after T07. But T13→T14→…→T35 is a single line, each task gated on the one before it. | A schedule risk, not a correctness one. Only matters if you want to parallelise the work or bring someone else in. |
+| **Subscription rate limits** | T23–T34, worst at T34 | The zero-cost path is verified and working. But subscription usage limits are a different constraint from API credits, and nothing in the plan accounts for them. T34 runs an eval suite repeatedly. | Model calls starting to fail or throttle during Phase D. Mitigation is already in place: flip `PPA_MODEL_TIER=cheap` or switch `auth_source` to `api_key` — one config line either way, by design. |
+| **`total_cost_usd` is not a bill** | T34 | The SDK reports a cost figure (~$0.17, ~$0.14 on the T01 probes) even with no API key present. That is equivalent-cost accounting on the subscription. | Useful as a *relative* signal when sizing eval runs. Do not budget against it as if it were spend. |
+| **The task chain is almost entirely serial** | T13 onward | T02 fans out to T03/T04/T05, and T10–T12 can run in parallel after T07. But T13→T14→…→T35 is a single line, each task gated on the one before it. | A schedule risk, not a correctness one. Only matters if you want to parallelise or bring someone else in. |
 
 ---
 
 ## How to use this file
 
-Add a row the moment something blocks or misdirects you — before fixing it, while the detail
-is still exact. A blocker discovered and fixed in the same ten minutes is still worth a row:
-the pattern across rows is the useful part, not any single entry.
+**Blockers** — add the row before fixing, while the detail is still exact. If a task file turns
+out to be wrong, the board's rule applies: **edit the task file before moving it to
+`completed_tasks/`**, and record the amendment here too, so the reason survives alongside the
+change.
 
-If a task file turns out to be wrong, the board's rule applies — **edit the task file before
-moving it to `completed_tasks/`** — and record the amendment here as well, so the reason
-survives alongside the change.
+**Decisions** — add a row for anything chosen *or* deferred. Pending rows carry no date and a
+`PENDING` status; fill them in when resolved rather than deleting them, so the reasoning
+survives. Anything that closes a DESIGN.md §6.7 open decision gets ticked there and on the board
+as well.
+
+**Bugs** — code defects only. Include the failing case, not just the symptom. If a test now
+guards it, name the test.
