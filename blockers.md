@@ -42,8 +42,8 @@ recorded, the time is anchored to the commit that fixed it and marked as such.
 ## 2 · Decisions
 
 Only decisions still pending or not yet confirmed live here. Numbering is not contiguous on
-purpose — decisions #1, #2, #3, #5, #6 and #8 are fully settled and have moved to §4; #4 and #7
-keep their original numbers rather than being renumbered, so every cross-reference elsewhere in
+purpose — decisions #1, #2, #3, #5, #6, #7 and #8 are fully settled and have moved to §4; #4
+keeps its original number rather than being renumbered, so every cross-reference elsewhere in
 this file (and in commit messages already pushed) still points at the right row.
 
 **#4 — Which model tier for eval runs** (DESIGN.md §6.7 open decision #2): **PENDING — resolve at
@@ -51,9 +51,11 @@ T34** by running `PPA_MODEL_TIER=cheap|primary|deep` and measuring, not by guess
 `t34_eval_suite_and_baseline.md`. Kept to one line because there's nothing to decide yet: no date,
 no timestamp, no runtime data exists until T34 actually runs.
 
+_No decisions currently sit in the table below — #4 above is the only one still open._
+
 | No | Decision | Description | Date (When it occured) | Timestamp (when it occured) | Status | Feedback | Consequence / follow-up | Task_file_name |
 |---|---|---|---|---|---|---|---|---|
-| 7 | **Status enum for `QuestionAnswer` and `ResearchFinding` — a real gap in DESIGN.md §2.7** | §2.7 gives an explicit status enum for five of the seven entities (Requirement, Assumption, Decision, Unknown, Risk) but not for `QuestionAnswer` or `ResearchFinding`, even though the shared base line requires every entity to carry `status`. Filled the gap by assumption so the schema could be built: `QuestionAnswer` → `PENDING\|ANSWERED\|SUPERSEDED` (mirrors ask→answer→superseded-by-a-later-round); `ResearchFinding` → `ACTIVE\|SUPERSEDED` (staleness is already tracked separately via `stale_after_days` + `researched_at`, computed by engines in T10–T12, so status only needs to track supersession). | 2026-09-23 | 15:30 IST | **Taken (needs confirmation)** — not truly resolved, an assumption filling a spec gap, flagged rather than buried in a docstring | Neither enum is testable against DESIGN.md because DESIGN.md doesn't specify one. Both are exercised in `tests/test_ledger/test_transitions.py` under the chosen names, so a rename is mechanical, not a redesign. | **Developer: please confirm or override these two enums.** If changed, update `TRANSITIONS` in `ppa/ledger/transitions.py` to match — nothing downstream depends on the specific values yet, but T09 (digest) and T25 (question engine) will start reading `QuestionAnswer.status` soon. | `t02_domain_entities_and_status_model.md` |
+| — | _None._ | — | — | — | — | — | — | — |
 
 ---
 
@@ -78,9 +80,8 @@ original number from its source table, for traceability into old commit messages
 "decision #2" or "bug #1" by number.
 
 **What's excluded, on purpose:** anything still open. That's decision #4 (which model tier for
-eval runs — pending, resolves at T34) and decision #7 (the `QuestionAnswer`/`ResearchFinding`
-status enums — taken, but flagged as needing your confirmation, not a closed matter). Both stay in
-§2 exactly because they're not done; moving them here would misrepresent that.
+eval runs — pending, resolves at T34). It stays in §2 exactly because it's not done; moving it
+here would misrepresent that.
 
 | Type | Ref | Item | Description | Date | Timestamp | Status | Feedback | Consequence / suggestion to fix | Task_file_name |
 |---|---|---|---|---|---|---|---|---|---|
@@ -94,12 +95,13 @@ status enums — taken, but flagged as needing your confirmation, not a closed m
 | Decision | #1 | **Repo is public, and everything was pushed knowingly** | Pushed all 117 tracked files to `github.com/ShubhamChougale01/product_planning_agent` on `main`. Visibility could not be verified from the shell (`gh` not installed), so it was raised before pushing and confirmed as public with everything included. | 2026-09-23 | 15:35 IST | **Taken** | Verified before pushing: no `.venv`, no `.env`, no `projects/`, no `*.local.*`, and no credential values in any tracked file. The `ANTHROPIC_API_KEY` strings a naive grep finds are env-var *names*, which is exactly the distinction `tests/test_secrets/test_repo_hygiene.py` enforces. | **`Plan/CLAUDE.md` is now publicly indexable**, including the "about me" section and working preferences. Reversing this needs a history rewrite plus force-push, not a delete — the cost only grows as commits accumulate. `projects/` stays gitignored, so future ledgers holding verbatim client answers never leave the machine; **keep that exclusion**. | — (repo-level) |
 | Bug | #1 | `test_model_strings_live_only_in_the_seam` only scanned `.py` files | The T01 hygiene test enforcing "no model id outside `ppa/providers/model.py`" (decision #2) globbed `.py` sources only. A model id pinned via `ModelConfig.model_override` in `config/model.yaml`, or in any future `.yaml`/`.toml`/`.json` config, would defeat the tier seam completely while the test stayed green — the exact failure mode the user's re-statement of decision #2 called out: *"the automated test should enforce exactly that."* Found by re-reading the test against that re-statement, not by anything actually leaking — a repo-wide grep before the fix found the seam intact. | 2026-09-23 | 16:00 IST | **Resolved** | Not something that failed silently in production — caught by re-checking the test's actual coverage against its stated intent, prompted directly by user feedback. `.md` files were deliberately left out of the widened scan: a decision record quoting `ppa doctor` output as verification evidence (e.g. `t01_environment_and_model_seam.md`) is documentation, not configuration, and doesn't drive runtime behavior. | Widened the scan to `.py`, `.yaml`, `.yml`, `.toml`, `.json`. Added a second, more direct test (`test_shipped_config_names_a_tier_not_a_model_id`) that loads the repo's actual `config/model.yaml` and asserts `model_override is None`. Proved the fix catches the real case: injected `model_override: claude-opus-5` into `config/model.yaml`, watched the test fail with the exact offending file named, then restored the original and confirmed green again. 117 tests passing. | `t01_environment_and_model_seam.md` |
 | Bug | #2 | Completed T01 record showed a bare `python` command that was actually run through `.venv/Scripts/python.exe` | While re-verifying decision #3 against the repo, found `completed_tasks/t01_environment_and_model_seam.md`'s "Verification output" transcript read `$ python -m ppa.cli --help` / `$ python -m ppa.cli doctor` / `$ pytest` — bare `python`, no `.venv/` prefix — though the commands actually run in-session used `.venv/Scripts/python.exe` throughout. Cosmetic, not functional: nothing else in the repo (README, scripts, `.gitignore`, the hygiene test) has this inconsistency. But a completed task's verification block is meant to be copy-pastable, and copy-pasting the bare form risks silently running a global interpreter instead of the project's `.venv` — exactly what decision #3 exists to prevent. | 2026-09-23 | 16:08 IST | **Resolved** | Found by checking the user's restated decision #3 against the actual repo state rather than taking the existing row at its word — same diligence as bug #1. | Corrected the three transcript lines in `completed_tasks/t01_environment_and_model_seam.md` to show the `.venv/Scripts/python.exe` prefix that was actually used. Editing a moved task file for factual accuracy (not a redesign) is consistent with the board's own rule of amending before/if a record turns out wrong. | `t01_environment_and_model_seam.md` |
+| Decision | #7 | **Status enum for `QuestionAnswer` and `ResearchFinding` — a real gap in DESIGN.md §2.7, now confirmed** | §2.7 gives an explicit status enum for five of the seven entities (Requirement, Assumption, Decision, Unknown, Risk) but not for `QuestionAnswer` or `ResearchFinding`, even though the shared base line requires every entity to carry `status`. The gap was filled by assumption in T02 (`SUPERSEDED` for both) and flagged for confirmation. **User confirmed the enum shape but renamed the terminal value: `REPLACED` instead of `SUPERSEDED`, for both entities** — final enums are `QuestionAnswer: PENDING\|ANSWERED\|REPLACED` and `ResearchFinding: ACTIVE\|REPLACED`. User's stated reason: `REPLACED` "is simpler and clearly communicates that a newer answer or finding has taken its place." Confirmed explicitly that research freshness stays independent of status — `researched_at`/`stale_after_days` track staleness; `REPLACED` only tracks supersession by a newer answer/finding, and a stale finding is not automatically `REPLACED`. | 2026-09-23 | 16:20 IST | **Resolved — confirmed with a rename** | This is the only entity-scoped exception to the `SUPERSEDED` vocabulary used everywhere else (Requirement, Assumption, Decision keep `SUPERSEDED`) — worth remembering when reading `transitions.py` so the two aren't mistaken for a typo. | Updated `ppa/ledger/models.py` (`QuestionAnswer.status`, `ResearchFinding.status`) and `ppa/ledger/transitions.py` (`TRANSITIONS[QUESTION_ANSWER]`, `TRANSITIONS[RESEARCH_FINDING]`) to use `REPLACED`. Updated `tests/test_ledger/test_transitions.py` (`CASES`, the terminal-status parametrize list) to match. Full suite re-run: 117 passed. `completed_tasks/t02_domain_entities_and_status_model.md` build record updated to show the confirmed enums rather than the original assumption. | `t02_domain_entities_and_status_model.md` |
 
 **Keeping this current:** when a row in §1–§3 becomes fully resolved, **cut it from its source
 table and paste it here**, in the right chronological slot — don't leave a copy behind, and don't
 just append to the bottom regardless of when it actually closed. A decision that's `Taken` but
-still flagged for confirmation (like #7) stays in §2 until the confirmation actually lands; only
-then does it move here.
+still flagged for confirmation (like #7 was, until the user confirmed it with the `REPLACED`
+rename) stays in §2 until the confirmation actually lands; only then does it move here.
 
 ---
 

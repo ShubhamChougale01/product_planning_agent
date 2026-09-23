@@ -18,7 +18,7 @@ CASES: dict[EntityType, dict[str, tuple[str, str]]] = {
     EntityType.DECISION: {"legal": ("OPEN", "DECIDED"), "illegal": ("DECIDED", "OPEN")},
     EntityType.UNKNOWN: {"legal": ("OPEN", "RESOLVED"), "illegal": ("RESOLVED", "OPEN")},
     EntityType.QUESTION_ANSWER: {"legal": ("PENDING", "ANSWERED"), "illegal": ("ANSWERED", "PENDING")},
-    EntityType.RESEARCH_FINDING: {"legal": ("ACTIVE", "SUPERSEDED"), "illegal": ("SUPERSEDED", "ACTIVE")},
+    EntityType.RESEARCH_FINDING: {"legal": ("ACTIVE", "REPLACED"), "illegal": ("REPLACED", "ACTIVE")},
     EntityType.RISK: {"legal": ("OPEN", "MITIGATED"), "illegal": ("MITIGATED", "OPEN")},
 }
 
@@ -82,8 +82,8 @@ def test_illegal_transition_error_names_entity_type_and_both_statuses():
         (EntityType.DECISION, "SUPERSEDED"),
         (EntityType.UNKNOWN, "RESOLVED"),
         (EntityType.UNKNOWN, "CONVERTED"),
-        (EntityType.QUESTION_ANSWER, "SUPERSEDED"),
-        (EntityType.RESEARCH_FINDING, "SUPERSEDED"),
+        (EntityType.QUESTION_ANSWER, "REPLACED"),
+        (EntityType.RESEARCH_FINDING, "REPLACED"),
         (EntityType.RISK, "CLOSED"),
     ],
 )

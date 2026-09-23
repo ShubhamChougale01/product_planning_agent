@@ -51,13 +51,13 @@ TRANSITIONS: dict[EntityType, dict[str, set[str]]] = {
         "CONVERTED": set(),
     },
     EntityType.QUESTION_ANSWER: {
-        "PENDING": {"ANSWERED", "SUPERSEDED"},
-        "ANSWERED": {"SUPERSEDED"},
-        "SUPERSEDED": set(),
+        "PENDING": {"ANSWERED", "REPLACED"},
+        "ANSWERED": {"REPLACED"},
+        "REPLACED": set(),
     },
     EntityType.RESEARCH_FINDING: {
-        "ACTIVE": {"SUPERSEDED"},
-        "SUPERSEDED": set(),
+        "ACTIVE": {"REPLACED"},
+        "REPLACED": set(),
     },
     EntityType.RISK: {
         "OPEN": {"MITIGATED", "ACCEPTED", "CLOSED"},

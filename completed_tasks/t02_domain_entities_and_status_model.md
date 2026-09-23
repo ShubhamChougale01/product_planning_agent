@@ -93,23 +93,24 @@ readiness gate rule in T10.
 
 ## Build record (completed 2026-09-23)
 
-### A genuine gap in DESIGN.md §2.7, resolved by assumption — flagged for confirmation
+### A genuine gap in DESIGN.md §2.7, resolved by assumption, then confirmed by the user
 
 §2.7 gives an explicit status enum for five of the seven entities (Requirement, Assumption,
 Decision, Unknown, Risk) but **not for Question/Answer or ResearchFinding**, even though the
 shared base line says every entity carries `status`. This is a real spec gap, not something I
-should have inferred silently, so it is written up in `blockers.md` as decision #7 (pending your
-confirmation) rather than buried in a docstring.
+should have inferred silently, so it was written up in `blockers.md` as decision #7 pending
+confirmation.
 
-The assumption made so the schema could be built at all:
+**Confirmed 2026-09-23, with one change from the original assumption:** the user kept the enum
+shape but replaced `SUPERSEDED` with `REPLACED` for both entities, to read more plainly as "a
+newer answer/finding has taken its place." `models.py` and `transitions.py` were updated to match;
+`SUPERSEDED` is unchanged for every other entity (Requirement, Assumption, Decision) — this rename
+is scoped to these two only.
 
-| Entity | Status enum chosen | Reasoning |
+| Entity | Status enum (confirmed) | Reasoning |
 |---|---|---|
-| `QuestionAnswer` | `PENDING \| ANSWERED \| SUPERSEDED` | Mirrors the record's own lifecycle: asked, then answered (any `answer_kind`), or replaced by a later round |
-| `ResearchFinding` | `ACTIVE \| SUPERSEDED` | `stale_after_days` already tracks *staleness by date*, computed elsewhere (T10-T12) — status only needs to track *supersession by a newer finding*, not implement its own staleness clock |
-
-If either is wrong, it's a one-line change to `models.py` plus a `TRANSITIONS` row — nothing else
-depends on the specific enum values yet.
+| `QuestionAnswer` | `PENDING \| ANSWERED \| REPLACED` | Mirrors the record's own lifecycle: asked, then answered (any `answer_kind`), or replaced by a later round |
+| `ResearchFinding` | `ACTIVE \| REPLACED` | `stale_after_days` already tracks *staleness by date*, computed elsewhere (T10-T12) — status only needs to track *replacement by a newer finding*, not implement its own staleness clock. Staleness and `REPLACED` are independent: a stale finding is not automatically `REPLACED`. |
 
 ### Other decisions taken, not in DESIGN.md verbatim
 
@@ -140,20 +141,20 @@ tests/test_ledger/test_transitions.py  # 39 tests
 
 ```
 $ pytest tests/test_ledger/   -> 100 passed
-$ pytest                      -> 116 passed (T01's 16 + T02's 100)
+$ pytest                      -> 117 passed (T01's 16 + T02's 100 + 1 model-seam test added later)
 ```
 
 No known bugs. No blockers encountered that stopped work — the status-enum gap above was worked
-around with a documented, reversible assumption rather than stalling on it.
+around with a documented, reversible assumption, then confirmed and closed (decision #7).
 
 ### Notes for whoever picks up T03
 
 - `ppa/ledger/models.py` and `ppa/ledger/transitions.py` are the two files T03's event envelope
   will reference when it needs to know which entity types and statuses exist.
-- If decision #7 in `blockers.md` gets overturned (different status names for QuestionAnswer or
-  ResearchFinding), update `TRANSITIONS` in `transitions.py` to match — the two files must stay
-  in sync, and `assert set(TRANSITIONS) == set(EntityType)` at import time will catch a forgotten
-  entity type but not a renamed status.
+- `QuestionAnswer` and `ResearchFinding` use `REPLACED` as their terminal/superseding status, not
+  `SUPERSEDED` — that's confirmed final (decision #7 in `blockers.md` §4), unlike every other
+  entity which uses `SUPERSEDED`. Easy to typo across the two; `assert set(TRANSITIONS) ==
+  set(EntityType)` at import time catches a missing entity type but not a wrong status name.
 
 ## On completion
 

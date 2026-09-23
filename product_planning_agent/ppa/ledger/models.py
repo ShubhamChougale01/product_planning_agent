@@ -222,7 +222,7 @@ class QuestionAnswer(BaseEntity):
 
     _id_prefixes: ClassVar[tuple[str, ...]] = ("Q", "ANS")
 
-    status: Literal["PENDING", "ANSWERED", "SUPERSEDED"] = "PENDING"
+    status: Literal["PENDING", "ANSWERED", "REPLACED"] = "PENDING"
     text: str
     why_asked: str
     target_areas: list[str] = Field(default_factory=list)
@@ -241,7 +241,7 @@ class ResearchFinding(BaseEntity, ConfidenceMixin):
 
     _id_prefixes: ClassVar[tuple[str, ...]] = ("RES",)
 
-    status: Literal["ACTIVE", "SUPERSEDED"] = "ACTIVE"
+    status: Literal["ACTIVE", "REPLACED"] = "ACTIVE"
     question: str
     method: str
     summary: str
