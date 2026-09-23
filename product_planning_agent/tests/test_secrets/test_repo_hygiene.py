@@ -43,10 +43,27 @@ def _source_files(*suffixes: str) -> list[Path]:
 
 
 def test_model_strings_live_only_in_the_seam():
-    """Switching model must be a config change, not a find-and-replace."""
+    """Switching model must be a config change, not a find-and-replace.
+
+    Tier names (`primary`, `deep`, `cheap`) are allowed anywhere. An actual
+    model id is not — not in Python, and not in a config file either. A
+    `model_override: claude-opus-5` slipped into `config/model.yaml` would
+    defeat the seam exactly as badly as hard-coding it in a function, so
+    config and code formats are scanned together here.
+
+    `.md` is deliberately NOT scanned: a decision record documenting which
+    model id was actually verified (docs/decisions/*.md, a completed task's
+    build record quoting `ppa doctor` output) is evidence, not configuration
+    — it doesn't drive runtime behavior, so it isn't a seam violation. The
+    credential-value check below still covers `.md`, because a leaked secret
+    is equally bad wherever it appears; a model id is not equally bad
+    everywhere, only where it configures something.
+    """
     offenders = {}
-    for path in _source_files(".py"):
-        if path == MODEL_SEAM:
+    for path in _source_files(".py", ".yaml", ".yml", ".toml", ".json"):
+        # This test file's own docstring names an example id; it isn't a seam
+        # violation, it's the sentence explaining why one would be.
+        if path in (MODEL_SEAM, Path(__file__)):
             continue
         if hits := MODEL_ID.findall(path.read_text(encoding="utf-8")):
             offenders[str(path.relative_to(REPO))] = sorted(set(hits))

@@ -75,6 +75,20 @@ def test_describe_is_safe_to_log(monkeypatch):
     assert "super-secret-value" not in str(described)
 
 
+def test_shipped_config_names_a_tier_not_a_model_id():
+    """The repo's own config/model.yaml must practice what test_repo_hygiene.py
+    preaches: a committed `model_override` would pin a model id in a file the
+    seam-scan test doesn't read as code, and would defeat the whole point of
+    the tier indirection the moment someone edited YAML instead of Python."""
+    from pathlib import Path
+
+    config_path = Path(__file__).resolve().parents[2] / "config" / "model.yaml"
+    provider = ModelProvider.from_config(config_path)
+
+    assert provider.cfg.model_override is None
+    assert provider.cfg.tier in MODEL_TIERS
+
+
 def test_options_carry_the_grant_and_the_model():
     provider = ModelProvider()
     options = provider.options(system_prompt="you are a test", allowed_tools=["read_planning_state"])
