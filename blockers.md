@@ -99,3 +99,34 @@ as well.
 
 **Bugs** — code defects only. Include the failing case, not just the symptom. If a test now
 guards it, name the test.
+
+---
+
+## 4 · Completed / resolved — chronological log
+
+Every blocker, bug and decision from §1–§3 that is actually closed, in the order it happened —
+oldest first, so this reads as the story of the build rather than a snapshot. This is an index,
+not a duplicate: full detail stays in its source table above; find it fast via the **Ref** column.
+
+**What's excluded, on purpose:** anything still open. That's decision #4 (which model tier for
+eval runs — pending, resolves at T34) and decision #7 (the `QuestionAnswer`/`ResearchFinding`
+status enums — taken, but flagged as needing your confirmation, not a closed matter). Both stay
+visible in §2 exactly because they're not done; adding them here would misrepresent that.
+
+| Date | Time (IST) | Type | Ref | What closed | Status | Task_file_name |
+|---|---|---|---|---|---|---|
+| 2026-09-23 | — (pre-T01, exact time not recorded) | Decision | #6 | Do Coditas requirement templates exist? | Resolved — NO | `t04_config_areas_profiles_house_style.md` |
+| 2026-09-23 | 14:05 | Decision | #3 | Package nested in `product_planning_agent/`, project-local `.venv` | Taken | `t01_environment_and_model_seam.md` |
+| 2026-09-23 | 14:20 | Decision | #2 | Config names a model tier, not a model id | Taken | `t01_environment_and_model_seam.md` |
+| 2026-09-23 | 14:28 | Blocker | #1 | Done-when gate was unsatisfiable as written (`sk-ant\|api_key` grep) | Resolved | `t01_environment_and_model_seam.md` |
+| 2026-09-23 | 14:30 | Decision | #5 | Web search availability on subscription auth (open decision #3) | Resolved — YES | `t01_environment_and_model_seam.md` |
+| 2026-09-23 | 15:17 | Blocker | #2 | Module naming mismatch — `ledger/entities.py` vs `ledger/models.py` | Resolved | `t01_environment_and_model_seam.md` → `t02_domain_entities_and_status_model.md` |
+| 2026-09-23 | 15:30 | Decision | #8 | Same-status transitions (`frm == to`) legal for every entity type | Taken | `t02_domain_entities_and_status_model.md` |
+| 2026-09-23 | 15:35 | Decision | #1 | Repo is public, and everything was pushed knowingly | Taken | — (repo-level) |
+| 2026-09-23 | 16:00 | Bug | #1 | Model-id hygiene test scanned `.py` files only, missing `config/model.yaml` | Resolved | `t01_environment_and_model_seam.md` |
+| 2026-09-23 | 16:08 | Bug | #2 | T01 verification transcript showed bare `python` instead of `.venv/Scripts/python.exe` | Resolved | `t01_environment_and_model_seam.md` |
+
+**Keeping this current:** when a row in §1–§3 moves to `Resolved` (or a decision moves off
+`PENDING` / off "needs confirmation" to genuinely settled), add one row here in timestamp order —
+append it in the right chronological slot, not just at the bottom. Don't re-copy the full
+description; the `Ref` column is the link back to it.
