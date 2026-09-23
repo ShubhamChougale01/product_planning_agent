@@ -46,9 +46,13 @@ purpose — decisions #1, #2, #3, #5, #6 and #8 are fully settled and have moved
 keep their original numbers rather than being renumbered, so every cross-reference elsewhere in
 this file (and in commit messages already pushed) still points at the right row.
 
+**#4 — Which model tier for eval runs** (DESIGN.md §6.7 open decision #2): **PENDING — resolve at
+T34** by running `PPA_MODEL_TIER=cheap|primary|deep` and measuring, not by guessing now — see
+`t34_eval_suite_and_baseline.md`. Kept to one line because there's nothing to decide yet: no date,
+no timestamp, no runtime data exists until T34 actually runs.
+
 | No | Decision | Description | Date (When it occured) | Timestamp (when it occured) | Status | Feedback | Consequence / follow-up | Task_file_name |
 |---|---|---|---|---|---|---|---|---|
-| 4 | **Which model tier for eval runs** (DESIGN.md §6.7 open decision #2) | Whether T34's eval suite runs on `cheap`, `primary` or `deep`. Deliberately deferred until real T34 runtimes are visible. | — | — | **PENDING — resolve at T34** | Do not guess this. The whole point of T34 is being able to measure whether a prompt change helped; picking a tier by intuition undermines that. | The `cheap` tier was pre-wired in T01, so resolving it is `PPA_MODEL_TIER=cheap` plus a measurement — no redesign. Tick DESIGN.md §6.7 and the board's open-decisions table when settled. | `t34_eval_suite_and_baseline.md` |
 | 7 | **Status enum for `QuestionAnswer` and `ResearchFinding` — a real gap in DESIGN.md §2.7** | §2.7 gives an explicit status enum for five of the seven entities (Requirement, Assumption, Decision, Unknown, Risk) but not for `QuestionAnswer` or `ResearchFinding`, even though the shared base line requires every entity to carry `status`. Filled the gap by assumption so the schema could be built: `QuestionAnswer` → `PENDING\|ANSWERED\|SUPERSEDED` (mirrors ask→answer→superseded-by-a-later-round); `ResearchFinding` → `ACTIVE\|SUPERSEDED` (staleness is already tracked separately via `stale_after_days` + `researched_at`, computed by engines in T10–T12, so status only needs to track supersession). | 2026-09-23 | 15:30 IST | **Taken (needs confirmation)** — not truly resolved, an assumption filling a spec gap, flagged rather than buried in a docstring | Neither enum is testable against DESIGN.md because DESIGN.md doesn't specify one. Both are exercised in `tests/test_ledger/test_transitions.py` under the chosen names, so a rename is mechanical, not a redesign. | **Developer: please confirm or override these two enums.** If changed, update `TRANSITIONS` in `ppa/ledger/transitions.py` to match — nothing downstream depends on the specific values yet, but T09 (digest) and T25 (question engine) will start reading `QuestionAnswer.status` soon. | `t02_domain_entities_and_status_model.md` |
 
 ---
