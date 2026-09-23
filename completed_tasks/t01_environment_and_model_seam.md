@@ -171,9 +171,9 @@ product_planning_agent/
 ### Verification output
 
 ```
-$ python -m ppa.cli --help          -> prints, 5 commands listed
-$ python -m ppa.cli doctor          -> model claude-sonnet-5 / auth subscription / credential claude-code-cli-login
-$ pytest                            -> 16 passed
+$ .venv/Scripts/python.exe -m ppa.cli --help   -> prints, 5 commands listed
+$ .venv/Scripts/python.exe -m ppa.cli doctor   -> model claude-sonnet-5 / auth subscription / credential claude-code-cli-login
+$ .venv/Scripts/python.exe -m pytest           -> 16 passed
 $ grep model ids outside the seam   -> clean
 $ grep credential values            -> clean
 ```
