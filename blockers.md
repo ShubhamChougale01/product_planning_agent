@@ -19,10 +19,10 @@ honest.
 
 ## 1 · Blockers
 
-| No | Blockers | Description | Date (When it occured) | Timestamp (when it occured) | Feedback | Suggestion to fix | Task_file_name |
-|---|---|---|---|---|---|---|---|
-| 1 | Done-when gate was unsatisfiable as written | The final acceptance box required `grep -ri 'sk-ant\|api_key' .` to return nothing outside `.gitignore`. Impossible to satisfy: `api_key` legitimately appears as the *name* of an environment variable (`api_key_env: "ANTHROPIC_API_KEY"` in `ModelConfig`, and the matching key in `config/model.yaml`). Satisfying it literally would mean obfuscating env var names, making the code worse. | 2026-09-23 | 14:28 IST (during T01 verification, ~6 min before the T01 commit) | Not a true blocker — work continued. But it is a task-file defect, and DESIGN.md §2.19.1 is clearly about credential **values** never being written down, not about the identifier being unmentionable. | Amended the box in the task file before moving it to `completed_tasks/`, per the board's own rule. Replaced the literal grep with the real intent, now enforced as tests in `tests/test_secrets/test_repo_hygiene.py`: no `sk-ant-…` literal, and no 16+ char literal assigned to anything named key/token/secret/password. Both clean. **Resolved.** | `t01_environment_and_model_seam.md` |
-| 2 | Module naming mismatch between task files | T01's scaffold step points at DESIGN.md §2.6, which only specifies the directory `ppa/ledger/`. The entity module was therefore created as `ppa/ledger/entities.py`. T02 names the file explicitly as `ppa/ledger/models.py`. The T01 handoff note then pointed the next task at the wrong path. | 2026-09-23 | 15:17 IST (found while checking T02 prerequisites, after T01 was already committed) | Caught before T02 started, so it cost nothing. Would have been two minutes of confusion at the top of T02 had it slipped through. Root cause is that §2.6 lists directories but not every filename, so scaffolding has to guess. | Renamed `entities.py` → `models.py` (`git mv`, stub docstring updated), corrected the T01 handoff note, re-ran the suite (16 passed). Committed as `8c2166d`. **Resolved.** For later tasks: when §2.6 is silent on a filename, check whether a downstream task names it before inventing one. | `t01_environment_and_model_seam.md` → `t02_domain_entities_and_status_model.md` |
+| No | Blockers | Description | Date (When it occured) | Timestamp (when it occured) | Status | Feedback | Suggestion to fix | Task_file_name |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Done-when gate was unsatisfiable as written | The final acceptance box required `grep -ri 'sk-ant\|api_key' .` to return nothing outside `.gitignore`. Impossible to satisfy: `api_key` legitimately appears as the *name* of an environment variable (`api_key_env: "ANTHROPIC_API_KEY"` in `ModelConfig`, and the matching key in `config/model.yaml`). Satisfying it literally would mean obfuscating env var names, making the code worse. | 2026-09-23 | 14:28 IST (during T01 verification, ~6 min before the T01 commit) | **Resolved** | Not a true blocker — work continued. But it is a task-file defect, and DESIGN.md §2.19.1 is clearly about credential **values** never being written down, not about the identifier being unmentionable. | Amended the box in the task file before moving it to `completed_tasks/`, per the board's own rule. Replaced the literal grep with the real intent, now enforced as tests in `tests/test_secrets/test_repo_hygiene.py`: no `sk-ant-…` literal, and no 16+ char literal assigned to anything named key/token/secret/password. Both clean. | `t01_environment_and_model_seam.md` |
+| 2 | Module naming mismatch between task files | T01's scaffold step points at DESIGN.md §2.6, which only specifies the directory `ppa/ledger/`. The entity module was therefore created as `ppa/ledger/entities.py`. T02 names the file explicitly as `ppa/ledger/models.py`. The T01 handoff note then pointed the next task at the wrong path. | 2026-09-23 | 15:17 IST (found while checking T02 prerequisites, after T01 was already committed) | **Resolved** | Caught before T02 started, so it cost nothing. Would have been two minutes of confusion at the top of T02 had it slipped through. Root cause is that §2.6 lists directories but not every filename, so scaffolding has to guess. | Renamed `entities.py` → `models.py` (`git mv`, stub docstring updated), corrected the T01 handoff note, re-ran the suite (16 passed). Committed as `8c2166d`. For later tasks: when §2.6 is silent on a filename, check whether a downstream task names it before inventing one. | `t01_environment_and_model_seam.md` → `t02_domain_entities_and_status_model.md` |
 
 **Timestamps** are local machine time (IST). Where the exact moment of discovery was not
 recorded, the time is anchored to the commit that fixed it and marked as such.
@@ -52,9 +52,9 @@ accident.
 Defects in code we wrote — as distinct from a task file being wrong (that is a blocker) or a
 choice being open (that is a decision).
 
-| No | Bug | Description | Date (When it occured) | Timestamp (when it occured) | Feedback | Suggestion to fix | Task_file_name |
-|---|---|---|---|---|---|---|---|
-| — | _None yet._ | T01 and T02 shipped with no known defects — 116 tests passing (T01's 16 + T02's 100), all green on first run. First stateful logic (writes, events, idempotency) arrives at T03/T06/T07; expect this table to start filling once entities are actually mutated rather than just validated. | — | — | — | — | — |
+| No | Bug | Description | Date (When it occured) | Timestamp (when it occured) | Status | Feedback | Suggestion to fix | Task_file_name |
+|---|---|---|---|---|---|---|---|---|
+| — | _None yet._ | T01 and T02 shipped with no known defects — 116 tests passing (T01's 16 + T02's 100), all green on first run. First stateful logic (writes, events, idempotency) arrives at T03/T06/T07; expect this table to start filling once entities are actually mutated rather than just validated. | — | — | — | — | — | — |
 
 ---
 
@@ -71,6 +71,20 @@ Not blockers. The things most likely to become row 3 of section 1.
 ---
 
 ## How to use this file
+
+**Status column (Blockers and Bugs tables)** — one of three values, always:
+
+| Value | Meaning |
+|---|---|
+| `Resolved` | Fixed, and the fix is committed |
+| `In Progress` | Being worked right now |
+| `Pending` | Known, not yet started |
+
+Set it to `In Progress` the moment you start on a row, not after — a row sitting at `Pending`
+with no `In Progress` row anywhere is a fair question to ask out loud. The Decisions table (§2)
+keeps its own richer status wording (`Taken`, `PENDING — resolve at T34`, `Resolved — YES/NO`)
+because a decision's status carries the outcome, not just whether work is done — that distinction
+is intentional, not an inconsistency to fix.
 
 **Blockers** — add the row before fixing, while the detail is still exact. If a task file turns
 out to be wrong, the board's rule applies: **edit the task file before moving it to
