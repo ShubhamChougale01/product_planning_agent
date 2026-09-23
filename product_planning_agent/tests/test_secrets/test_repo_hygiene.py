@@ -77,7 +77,7 @@ def test_model_strings_live_only_in_the_seam():
 def test_no_credential_values_are_committed():
     """Env var *names* are fine. Values are not (DESIGN.md 2.19.1)."""
     offenders = []
-    for path in _source_files(".py", ".yaml", ".yml", ".toml", ".md", ".json", ".txt"):
+    for path in _source_files(".py", ".yaml", ".yml", ".toml", ".md", ".json", ".txt", ".j2"):
         text = path.read_text(encoding="utf-8", errors="replace")
         # This test file necessarily contains the patterns it looks for.
         if path == Path(__file__):

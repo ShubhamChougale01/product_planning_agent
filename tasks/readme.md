@@ -22,7 +22,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | ☑ | `t01_environment_and_model_seam.md` Environment, scaffold and the model seam | 0.5 day | One 10-line script |
 | ☑ | `t02_domain_entities_and_status_model.md` Domain entities and the status model | 0.75 day | No |
 | ☑ | `t03_event_model_and_transactions.md` Event model and transaction envelope | 0.5 day | No |
-| ☐ | `t04_config_areas_profiles_house_style.md` Configuration: coverage areas, user profiles, house style | 0.75 day | No |
+| ☑ | `t04_config_areas_profiles_house_style.md` Configuration: coverage areas, user profiles, house style | 0.75 day | No |
 | ☐ | `t05_result_envelope_and_errors.md` Result envelope and error taxonomy | 0.5 day | No |
 | ☐ | `t06_event_log_and_secret_scanning.md` Event log with inbound secret scanning | 0.75 day | No |
 | ☐ | `t07_materializer_ids_idempotency.md` Materializer, ID allocation, idempotency | 0.75 day | No |

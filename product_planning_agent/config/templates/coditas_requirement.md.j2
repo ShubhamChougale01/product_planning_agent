@@ -1,0 +1,25 @@
+{# Default requirement template (DESIGN.md §6.3, T04).
+   Deliberately close to the canonical schema so the mapping is near-identity
+   at first. Replace this file, not ppa/ledger/models.py, to adopt a
+   different house style. #}
+# {{ terminology.requirement }} {{ requirement.id }}
+
+**Statement:** {{ requirement.statement }}
+
+- **Type:** {{ requirement.type }}
+- **Status:** {{ requirement.status }}
+- **Confidence:** {{ requirement.confidence }} ({{ requirement.confidence_basis }})
+- **Priority:** {{ requirement.priority }}
+
+**Covers areas:** {{ requirement.covers_areas | join(", ") if requirement.covers_areas else "—" }}
+**Derived from:** {{ requirement.derived_from_answers | join(", ") if requirement.derived_from_answers else "—" }}
+**Depends on:** {{ (requirement.depends_on_assumptions + requirement.depends_on_decisions) | join(", ") if (requirement.depends_on_assumptions + requirement.depends_on_decisions) else "—" }}
+
+{% if requirement.custom_fields -%}
+**Custom fields:**
+{% for key, value in requirement.custom_fields.items() -%}
+- {{ key }}: {{ value }}
+{% endfor -%}
+{% else -%}
+**Custom fields:** {}
+{% endif -%}

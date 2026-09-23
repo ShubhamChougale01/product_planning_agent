@@ -1,2 +1,28 @@
 # House style for generated documents (DESIGN.md §6.3).
-# Placeholder — T04 fills this in, together with coverage areas and user profiles.
+#
+# Resolved 2026-09-23 (tasks/readme.md open decision #1): no existing Coditas
+# templates were found. This is our own default, deliberately close to the
+# canonical schema so the mapping starts near-identity, and deliberately
+# designed to be replaced rather than treated as permanent — swapping this
+# file for a client's own style is meant to be a config change, not a
+# code change.
+name: coditas_default
+
+terminology:
+  requirement: "Requirement"
+  story: "User Story"
+
+requirement:
+  # Empty by default: nothing is required yet, not because the mechanism is
+  # missing. A client style config can populate this list without touching
+  # ppa/ledger/models.py.
+  required_custom_fields: []
+  template: templates/coditas_requirement.md.j2
+
+story:
+  # v3 shape, defined now so v1 doesn't block it — nothing writes a story yet.
+  template: templates/coditas_story.md.j2
+  fields: [id, title, description, acceptance_criteria, estimate, priority]
+
+export:
+  format: markdown
