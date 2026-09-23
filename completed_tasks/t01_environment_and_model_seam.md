@@ -182,7 +182,7 @@ $ grep credential values            -> clean
 
 - Install with `.venv/Scripts/python.exe -m pip install -e ".[dev]"`, run everything through that
   interpreter rather than the global one.
-- Entities go in `ppa/ledger/entities.py`, which is stubbed and waiting. The seven entity types and
+- Entities go in `ppa/ledger/models.py`, which is stubbed and waiting. The seven entity types and
   the shared `id/version/status/created_at/updated_at/created_by/updated_by/history[]` base are in
   DESIGN.md §2.7.
 - Do not name a model anywhere. Ask `ModelProvider` for a tier. There is a test that will fail you.
