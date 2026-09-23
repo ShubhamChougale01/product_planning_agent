@@ -1,0 +1,15 @@
+# Model configuration. Read by ppa/providers/model.py — the only module that
+# resolves a tier to an actual model id.
+#
+# Note there is no model string here on purpose: config names a *tier*, and the
+# tier table lives in one place in code. Switching the whole system to a
+# different model is a one-line change there; switching this project is the
+# line below.
+
+tier: primary            # primary | deep | cheap
+auth_source: subscription  # inherits the Claude Code CLI login — no API key
+api_key_env: ANTHROPIC_API_KEY  # only consulted when auth_source is api_key
+max_turns: 30
+permission_mode: default
+
+# Never put a credential in this file. It is committed to git.

@@ -1,0 +1,8 @@
+> C:\Users\shubham.chougale_cod\Downloads\learning\Todo\product-planning-agent\tasks\readme.md - Go through this readme
+  file and get the context about the project our main goal is to built - I want to design a product plan agent. when i
+  give you a topic, you should fist ask me clarifying questions about scope, audience, and desired depth. Then form a
+  written plan. once i approve the plan you research the topic thoroughly organize your findings into clear sections and
+  save a structured report to the output folder before we build this show me your plan for agent itself so for that i have
+  task folder C:\Users\shubham.chougale_cod\Downloads\learning\Todo\product-planning-agent\tasks which includes the task
+  that we need to accomplished after  that completing the task make sure we will move that task markdown into the
+  completed_tasks folder - C:\Users\shubham.chougale_cod\Downloads\learning\Todo\product-planning-agent\completed_tasks
