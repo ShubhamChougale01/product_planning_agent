@@ -15,6 +15,13 @@ gets a row — the pattern across rows is the useful part, not any single entry.
 that have not yet bitten live in the watchlist at the bottom, kept separate so the tables stay
 honest.
 
+**Permanence rule:** sections 1–3 are never pruned. A row stays exactly where it is — with its
+real status (`Resolved`, `In Progress`, `Pending`, `Taken`, whatever it actually is) — forever.
+Logging something into the §4 timeline is a pure addition: it never edits, deletes, or moves the
+row it points back to. §1–3 is the complete standing record of everything, done or not; §4 is only
+an index over the parts that are done. If §4 said something was resolved but its source row above
+had been quietly removed, this file would be lying by omission — so that never happens.
+
 ---
 
 ## 1 · Blockers
@@ -108,6 +115,11 @@ Every blocker, bug and decision from §1–§3 that is actually closed, in the o
 oldest first, so this reads as the story of the build rather than a snapshot. This is an index,
 not a duplicate: full detail stays in its source table above; find it fast via the **Ref** column.
 
+**Adding a row here never touches §1–§3.** The source row stays put, unedited, exactly as it was
+when it was written — including every row that is still `In Progress` or `Pending` (not attempted
+yet). This table only ever grows by addition from the bottom up (chronologically); it does not
+shrink, replace, or clean up anything above it.
+
 **What's excluded, on purpose:** anything still open. That's decision #4 (which model tier for
 eval runs — pending, resolves at T34) and decision #7 (the `QuestionAnswer`/`ResearchFinding`
 status enums — taken, but flagged as needing your confirmation, not a closed matter). Both stay
@@ -129,4 +141,7 @@ visible in §2 exactly because they're not done; adding them here would misrepre
 **Keeping this current:** when a row in §1–§3 moves to `Resolved` (or a decision moves off
 `PENDING` / off "needs confirmation" to genuinely settled), add one row here in timestamp order —
 append it in the right chronological slot, not just at the bottom. Don't re-copy the full
-description; the `Ref` column is the link back to it.
+description; the `Ref` column is the link back to it. **Update the status word in the source row
+above if it changed (e.g. `Pending` → `Resolved`), but never delete that row or move it out of
+its table** — an item still `In Progress` or not yet attempted stays visible in §1–§3 exactly as
+it is, untouched, whether or not anything has been added to this log yet.
