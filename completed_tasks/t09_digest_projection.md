@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- [ ] **T07**
+- [x] **T07**
 
 ## Why this task exists
 
@@ -49,11 +49,32 @@ tests/test_ledger/test_digest.py
 
 ## Done when
 
-- [ ] A 50-entity ledger digests to under 2k tokens
-- [ ] Zero blocking items are omitted or truncated, at any ledger size
-- [ ] Zero unconfirmed HIGH-impact assumptions are omitted
-- [ ] A write followed immediately by `read_digest` reflects that write
-- [ ] Digest generation for a 500-event project takes under 200ms
+- [x] A 50-entity ledger digests to under 2k tokens
+- [x] Zero blocking items are omitted or truncated, at any ledger size
+- [x] Zero unconfirmed HIGH-impact assumptions are omitted
+- [x] A write followed immediately by `read_digest` reflects that write
+- [x] Digest generation for a 500-event project takes under 200ms
+
+## Build record
+
+Built `ppa/ledger/digest.py` — `generate_digest(project, entities, coverage=..., round_number=...,
+now=...)` is the pure renderer; `read_digest(project, ...)` is the fresh-read convenience wrapper
+S3.2 asks for. Coverage state is deliberately **not** computed here: T10 (`ppa/engines/coverage.py`)
+does not exist yet and owns that exclusively ("nothing outside this engine may set an area's
+state"), so `generate_digest` takes `coverage` as an already-computed mapping and defaults every
+area to `UNTOUCHED` when none is supplied — T10 will be the first real caller to pass one in.
+Blocking items (Unknown/Decision `blocking` fields) and unconfirmed HIGH assumptions are plain
+filters over entity fields the digest can read directly, no engine dependency needed.
+
+One real gap found and fixed in the same session, logged as decision #18: `read_digest` built on
+T07's `rebuild_all` blew the 200ms budget (~460ms for 500 events) because `rebuild_all` rewrites
+every entity file to disk on every call — correct for its own purpose, wrong cost for a read that
+may happen many times per turn. Added `ppa/ledger/materialize.py::current_entities` (the same fold,
+no file writes) and pointed `read_digest` at it; `rebuild_all`'s own behavior and tests are
+untouched.
+
+Tests: `tests/test_ledger/test_digest.py`, 9 new tests. Full suite re-run: **269 passed**
+(260 after T08, +9).
 
 ## On completion
 

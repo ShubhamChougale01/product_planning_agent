@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- [ ] **T07**
+- [x] **T07**
 
 ## Why this task exists
 
@@ -64,12 +64,29 @@ tests/test_ledger/test_project.py
 
 ## Done when
 
-- [ ] Two projects coexist with fully independent ledgers
-- [ ] A freshly created project has **zero** git remotes — assert it
-- [ ] A rejected tool call appears in `audit.ndjson` and leaves `events.ndjson` untouched
-- [ ] No tool input *value* is recoverable from the audit log — only hashes and pointers
-- [ ] `git log --oneline` reads as a comprehensible planning narrative
-- [ ] The verbatim-storage notice is shown on `ppa new`
+- [x] Two projects coexist with fully independent ledgers
+- [x] A freshly created project has **zero** git remotes — assert it
+- [x] A rejected tool call appears in `audit.ndjson` and leaves `events.ndjson` untouched
+- [x] No tool input *value* is recoverable from the audit log — only hashes and pointers
+- [x] `git log --oneline` reads as a comprehensible planning narrative
+- [x] The verbatim-storage notice is shown on `ppa new`
+
+## Build record
+
+Built `ppa/ledger/project.py` (`Project`, `create_project`/`open_project`/`list_projects`),
+`ppa/ledger/gitops.py` (`git_init`/`list_remotes`/`commit`/`commit_turn`/`commit_message`), and
+`ppa/ledger/audit.py` (`AuditRecord`/`InputsRef`/`AuditResult`/`record_audit`/`read_audit_records`/
+`hash_inputs`). `ppa/cli.py new` now creates a real project and prints the verbatim-storage notice.
+
+Three non-obvious calls made along the way, logged in `blockers.md` §4 as decisions #15–#17:
+`seed_requirement` is scanned/redacted before being stored (closing a gap `store.py`'s own
+`before`/`after` scanning boundary leaves open for this one field); `ledger_version` is computed
+on read from `events.ndjson` rather than cached in `project.json`, to avoid breaking an
+already-committed T07 test; `AuditRecord.operation` is a closed
+`Literal["read", "write", "reject", "retry"]` rather than free text.
+
+Tests: `tests/test_ledger/test_project.py`, 14 new tests, one or more per Done-when box above.
+Full suite re-run after this task: **260 passed** (246 at branch start after T07, +14).
 
 ## On completion
 

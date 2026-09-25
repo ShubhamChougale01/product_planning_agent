@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- [ ] **T05**
+- [x] **T05**
 
 ## Why this task exists
 
@@ -90,13 +90,40 @@ tests/test_tools/test_spec.py
 
 ## Done when
 
-- [ ] A test asserts **every** registered tool populates all thirteen fields
-- [ ] `use_when`, `do_not_use_when` and `examples` each have at least 2 entries per tool
-- [ ] Registering a tool with an incomplete spec raises at import time
-- [ ] `related_tools` names how each competing tool differs, not just that it exists
-- [ ] One renderer produces all descriptions — no hand-written description strings anywhere
-- [ ] `server_for(agent_id)` exposes exactly that agent's granted tools and nothing else
-- [ ] `allowed_tools` is derived from the grant table, never hand-listed per agent
+- [x] A test asserts **every** registered tool populates all thirteen fields
+- [x] `use_when`, `do_not_use_when` and `examples` each have at least 2 entries per tool
+- [x] Registering a tool with an incomplete spec raises at import time
+- [x] `related_tools` names how each competing tool differs, not just that it exists
+- [x] One renderer produces all descriptions — no hand-written description strings anywhere
+- [x] `server_for(agent_id)` exposes exactly that agent's granted tools and nothing else
+- [x] `allowed_tools` is derived from the grant table, never hand-listed per agent
+
+## Build record
+
+Built `ppa/tools/spec.py` (`ToolSpec`, `render_description`), `ppa/tools/registry.py` (`register`,
+`get`, `all_tools`, `tools_for_agent`, `clear_registry`), and `ppa/tools/server.py` (`server_for`,
+`granted_sdk_tools`, `allowed_tool_names`), wired to the real installed `claude-agent-sdk`'s
+`create_sdk_mcp_server`/`tool` — inspected the installed package directly (signatures, docstrings)
+rather than guessing its API.
+
+`register()`'s validator goes a little beyond the task's literal thirteen-field-populated
+requirement: it also cross-checks that `required ∪ optional == inputs.keys()` (disjoint) and that
+every `formats` key names a real input — catching a spec author declaring an input but forgetting
+to say whether it's required, which "all fields populated" alone wouldn't catch.
+
+`ppa/tools/server.py`'s `input_schema` declares every field `str` regardless of `ToolSpec.formats`,
+since `ToolSpec.inputs` values are prose ("field: str, meaning"), not machine-parseable types —
+logged as decision #22; real per-field validation is deferred to T19 as designed (§2.10's five
+validation layers), not lost.
+
+`granted_sdk_tools(agent_id)` is exposed alongside `server_for` specifically so tests can assert
+"exactly this agent's tools, nothing else" against the actual `SdkMcpTool` objects, without needing
+to drive the full MCP transport to introspect a built server.
+
+Tests: `tests/test_tools/test_spec.py` (6), `tests/test_tools/test_registry.py` (17),
+`tests/test_tools/test_server.py` (6) — beyond the task's own "Files touched" list (which names only
+`test_spec.py`), split by module to match this build's established convention. Full suite re-run:
+**355 passed** (326 after T12, +29).
 
 ## On completion
 

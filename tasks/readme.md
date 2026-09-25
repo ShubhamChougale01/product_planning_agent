@@ -25,20 +25,20 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | ☑ | `t04_config_areas_profiles_house_style.md` Configuration: coverage areas, user profiles, house style | 0.75 day | No |
 | ☑ | `t05_result_envelope_and_errors.md` Result envelope and error taxonomy | 0.5 day | No |
 | ☑ | `t06_event_log_and_secret_scanning.md` Event log with inbound secret scanning | 0.75 day | No |
-| ☐ | `t07_materializer_ids_idempotency.md` Materializer, ID allocation, idempotency | 0.75 day | No |
-| ☐ | `t08_project_lifecycle_audit_git.md` Project lifecycle, audit log, git | 0.5 day | No |
-| ☐ | `t09_digest_projection.md` Digest projection | 0.5 day | No |
-| ☐ | `t10_coverage_and_readiness_engines.md` Coverage and readiness engines | 0.75 day | No |
-| ☐ | `t11_impact_graph_and_conflicts.md` Impact graph and conflict detection | 0.75 day | No |
-| ☐ | `t12_date_rules_and_open_items.md` Date rules and open items | 0.5 day | No |
+| ☑ | `t07_materializer_ids_idempotency.md` Materializer, ID allocation, idempotency | 0.75 day | No |
+| ☑ | `t08_project_lifecycle_audit_git.md` Project lifecycle, audit log, git | 0.5 day | No |
+| ☑ | `t09_digest_projection.md` Digest projection | 0.5 day | No |
+| ☑ | `t10_coverage_and_readiness_engines.md` Coverage and readiness engines | 0.75 day | No |
+| ☑ | `t11_impact_graph_and_conflicts.md` Impact graph and conflict detection | 0.75 day | No |
+| ☑ | `t12_date_rules_and_open_items.md` Date rules and open items | 0.5 day | No |
 
 ### B · Tools and permissions  ·  4.75d
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t13_toolspec_contract_and_registry.md` ToolSpec contract and tool registry | 1 day | No |
-| ☐ | `t14_permission_gate_and_dispatcher.md` Permission gate and dispatcher | 0.5 day | No |
-| ☐ | `t15_read_planning_state_tool.md` read_planning_state — the consolidated reader | 0.5 day | No |
+| ☑ | `t13_toolspec_contract_and_registry.md` ToolSpec contract and tool registry | 1 day | No |
+| ☑ | `t14_permission_gate_and_dispatcher.md` Permission gate and dispatcher | 0.5 day | No |
+| ☑ | `t15_read_planning_state_tool.md` read_planning_state — the consolidated reader | 0.5 day | No |
 | ☐ | `t16_manage_writer_tools.md` The manage_* writers | 1 day | No |
 | ☐ | `t17_ask_user_tool.md` ask_user and the four affordances | 0.5 day | No |
 | ☐ | `t18_stub_tools_and_approval_gate.md` Stub tools and the approval gate | 0.75 day | No |

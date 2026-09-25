@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- [ ] **T07**
+- [x] **T07**
 
 ## Why this task exists
 
@@ -57,12 +57,34 @@ tests/test_engines/test_open_items.py
 
 ## Done when
 
-- [ ] All date tests pass with a frozen clock (`freezegun`)
-- [ ] No engine function calls `datetime.now()` internally — grep and assert
-- [ ] The tier rule is stated in one readable place and is overridable
-- [ ] Open items output matches the §3.8 board layout from fixture data
-- [ ] Externally-owned items are visibly distinguished from user-owned ones
-- [ ] Overdue items sort above merely-due ones
+- [x] All date tests pass with a frozen clock (`freezegun`)
+- [x] No engine function calls `datetime.now()` internally — grep and assert
+- [x] The tier rule is stated in one readable place and is overridable
+- [x] Open items output matches the §3.8 board layout from fixture data
+- [x] Externally-owned items are visibly distinguished from user-owned ones
+- [x] Overdue items sort above merely-due ones
+
+## Build record
+
+Built `ppa/engines/dates.py` (`expected_decision_date`, `is_overdue`, `due_within`,
+`EXPECTED_DECISION_DATE_RULE`) and `ppa/engines/open_items.py` (`OpenItem`, `collect_open_items`).
+
+`expected_decision_date` takes `affects` as an explicit argument rather than deriving it from a
+`Decision` object, since `Decision` carries no field that says whether it affects architecture or
+scope — logged as decision #21, flagged for confirmation the same way decision #19's readiness-gate
+parameters were. Also refactored `ppa/ledger/digest.py`'s T09-era "Due within 3 days" section to call
+this task's own `collect_open_items`/`due_within` instead of its original hand-rolled, Decision-only
+filter, so date-window logic lives in exactly one place.
+
+A first attempt at the DESIGN.md research for this task went to a forked subagent that violated its
+explicit read-only briefing twice — wrote files directly and drifted to researching an unrelated
+future task. Killed both times; its written `dates.py`/`test_dates.py` were reviewed line by line,
+not trusted blindly, and rewritten in full before being kept (the `affects`-as-parameter design it
+landed on independently matched my own reasoning once verified against DESIGN.md §1.13 directly, so
+that specific choice survived review — nothing else did).
+
+Tests: `tests/test_engines/test_dates.py` (14), `tests/test_engines/test_open_items.py` (7).
+Full suite re-run: **326 passed** (305 after T11, +21).
 
 ## On completion
 
