@@ -54,7 +54,7 @@ no timestamp, no runtime data exists until T34 actually runs.
 
 | No | Decision | Description | Date (When it occured) | Timestamp (when it occured) | Status | Feedback | Consequence / follow-up | Task_file_name |
 |---|---|---|---|---|---|---|---|---|
-| — | _None currently pending, besides #4 above._ | — | — | — | — | — | — | — |
+| 14 | **Entity file location — DESIGN.md §2.6's repository diagram leaves the materialized-view filename/path as `…`** | §2.6 shows `projects/<slug>/.planning/` holding `events.ndjson`, `audit.ndjson` and `…` — no convention for the entity JSON files §1.8 calls "what git diffs show and what humans read." Filled by assumption so T07 could ship a working materializer: one flat file per entity, `entities/<entity_id>.json` (a sibling of `events.ndjson`), keyed directly on the globally-unique `entity_id` rather than nested by type. | 2026-09-25 | — | **Taken (needs confirmation)** — same posture as decision #11: an assumption filling a real spec gap, not silently buried | Not testable against DESIGN.md directly since it gives no path. Tests in `tests/test_ledger/test_materialize.py` assert only that `rebuild_all()` is deterministic and byte-identical on rebuild, not any particular directory shape. Changing the layout is a one-line change to `_entity_file_path`/`rebuild_all` in `ppa/ledger/materialize.py`, not a redesign. | **Developer: please confirm or override this layout**, particularly whether entity files should nest by type (`entities/requirement/REQ-001.json`) instead of flat. Nothing downstream depends on the exact path yet — T08 (project lifecycle) is the next task to touch this area. | `t07_materializer_ids_idempotency.md` |
 
 ---
 
