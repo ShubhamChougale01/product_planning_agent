@@ -36,7 +36,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t13_toolspec_contract_and_registry.md` ToolSpec contract and tool registry | 1 day | No |
+| ☑ | `t13_toolspec_contract_and_registry.md` ToolSpec contract and tool registry | 1 day | No |
 | ☐ | `t14_permission_gate_and_dispatcher.md` Permission gate and dispatcher | 0.5 day | No |
 | ☐ | `t15_read_planning_state_tool.md` read_planning_state — the consolidated reader | 0.5 day | No |
 | ☐ | `t16_manage_writer_tools.md` The manage_* writers | 1 day | No |
