@@ -9,8 +9,8 @@
 
 ## Prerequisites
 
-- [ ] **T04**
-- [ ] **T07**
+- [x] **T04**
+- [x] **T07**
 
 ## Why this task exists
 
@@ -82,14 +82,36 @@ tests/test_engines/test_readiness.py
 
 ## Done when
 
-- [ ] Progress is reproducible from the event log alone
-- [ ] There is **no** public setter for coverage state — assert by inspection and by test
-- [ ] The same ledger yields different progress for `engineer` vs `product` profiles
-- [ ] Each of the seven gate conditions has a test that fails the gate **in isolation**
-- [ ] Each failure produces a blocker naming the entity and what would clear it
-- [ ] An external-owned blocking unknown does **not** block READY
-- [ ] A non-blocking RESEARCH unknown does **not** block READY
-- [ ] A blocking RESEARCH unknown **does** block READY
+- [x] Progress is reproducible from the event log alone
+- [x] There is **no** public setter for coverage state — assert by inspection and by test
+- [x] The same ledger yields different progress for `engineer` vs `product` profiles
+- [x] Each of the seven gate conditions has a test that fails the gate **in isolation**
+- [x] Each failure produces a blocker naming the entity and what would clear it
+- [x] An external-owned blocking unknown does **not** block READY
+- [x] A non-blocking RESEARCH unknown does **not** block READY
+- [x] A blocking RESEARCH unknown **does** block READY
+
+## Build record
+
+Built `ppa/engines/coverage.py` (`compute_coverage`, `progress` — `__all__` is exactly those two,
+enforced by a test that inspects the module rather than trusting a docstring claim) and
+`ppa/engines/readiness.py` (`Blocker`, `check_readiness`, `force_ready`).
+
+Three of the seven gate conditions name facts nothing before T30 (Review mode) will ever produce:
+which areas the user confirmed in REVIEW, unresolved conflicts (a different, later thing than T11's
+conflict *candidates*), and REVIEW approval itself. All three are accepted as parameters rather than
+invented storage for — logged as decision #19. `unresolved_conflicts`/`confirmed_areas` default to
+empty; `review_approved` defaults to `False`, the fail-closed direction.
+
+Condition 5 ("at least one Requirement covers each critical area") is checked directly against
+entities rather than trusting condition 1's `coverage` labels, on purpose — it can fail together
+with condition 1 (zero requirements at all for an area) but can also pass while condition 1 fails
+alone (a PROPOSED-only requirement: covers the area, just not confirmed yet), which is exactly the
+fixture `test_condition_1_critical_area_not_sufficient` uses to isolate condition 1 without also
+tripping condition 5.
+
+Tests: `tests/test_engines/test_coverage.py` (9), `tests/test_engines/test_readiness.py` (12).
+Full suite re-run: **290 passed** (269 after T09, +21).
 
 ## Traps
 
