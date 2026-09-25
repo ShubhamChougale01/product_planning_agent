@@ -98,6 +98,23 @@ def _entity_file_path(entities_dir: Path, entity_id: str) -> Path:
     return entities_dir / f"{entity_id}.json"
 
 
+def current_entities(events_path: Path | str) -> dict[str, BaseEntity]:
+    """Fold `events_path` down to every entity's current state, in memory
+    only — no `entities/` file is read or written. This is what `rebuild_all`
+    itself computes before persisting; callers that only need a fresh
+    snapshot to read (T09's digest, at every turn) should use this directly
+    rather than pay to rewrite every entity file on every read."""
+
+    events_path = Path(events_path)
+    snapshots = _latest_snapshots(_effective_events(_read_events(events_path)))
+
+    entities: dict[str, BaseEntity] = {}
+    for entity_id, snapshot in snapshots.items():
+        model_cls = ENTITY_TYPES[entity_type_for(entity_id)]
+        entities[entity_id] = model_cls.model_validate(snapshot)
+    return entities
+
+
 def rebuild_all(events_path: Path | str) -> dict[str, BaseEntity]:
     """Regenerate every entity file under `entities/` (a sibling of
     `events_path`) from scratch, replacing whatever was already there —
@@ -107,18 +124,14 @@ def rebuild_all(events_path: Path | str) -> dict[str, BaseEntity]:
     events_path = Path(events_path)
     entities_dir = events_path.parent / "entities"
 
-    snapshots = _latest_snapshots(_effective_events(_read_events(events_path)))
+    entities = current_entities(events_path)
 
     if entities_dir.exists():
         for existing in entities_dir.glob("*.json"):
             existing.unlink()
     entities_dir.mkdir(parents=True, exist_ok=True)
 
-    entities: dict[str, BaseEntity] = {}
-    for entity_id, snapshot in snapshots.items():
-        model_cls = ENTITY_TYPES[entity_type_for(entity_id)]
-        entity = model_cls.model_validate(snapshot)
-        entities[entity_id] = entity
+    for entity_id, entity in entities.items():
         _entity_file_path(entities_dir, entity_id).write_text(
             entity.model_dump_json(indent=2) + "\n", encoding="utf-8"
         )
