@@ -16,18 +16,9 @@ DATE_RULE`, below).
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Literal, Sequence
+from typing import Any, Sequence
 
-AffectsKind = Literal["architecture", "scope", "other"]
-"""DESIGN.md's tier rule names "affects architecture" / "affects scope" as
-the deciding factor for a *blocking* decision's deadline, but `Decision`
-(T02) carries no field that classifies which — only a free-text `question`.
-Rather than guess from that text, this is accepted as an explicit argument:
-whoever calls `expected_decision_date` (T21's outer loop, eventually) is in
-a better position to judge it — from the decision's `related_requirements`
-and the areas they cover, say — than a keyword match on a sentence would
-be. Flagged in `blockers.md` for confirmation, same posture as the ledger's
-other "accept it as an input, don't invent a derivation" calls."""
+from ppa.ledger.models import AffectsKind  # noqa: F401 — re-exported for callers
 
 EXPECTED_DECISION_DATE_RULE = (
     "blocking + affects architecture -> now + 3 days; "
@@ -44,11 +35,19 @@ timeline exists — v1 has none yet, so `expected_decision_date` always takes
 the concrete +14-day substitute, never that `null` branch."""
 
 
-def expected_decision_date(*, blocking: bool, affects: AffectsKind, now: datetime) -> datetime:
-    """The v1 tier rule, applied at `now`. Always a concrete datetime —
-    see `EXPECTED_DECISION_DATE_RULE`'s docstring for why the `null` branch
-    DESIGN.md also allows is never taken here."""
+def expected_decision_date(decision: Any, now: datetime) -> datetime:
+    """The v1 tier rule, applied at `now`, matching the task file's own
+    `expected_decision_date(decision, now)` signature (decision #21,
+    resolved). Reads `decision.blocking` and `decision.affects` —
+    duck-typed like `is_overdue`/`due_within` below, so a `Decision` entity
+    or an equivalent test double both work. `affects is None` (unclassified)
+    is treated as `"other"`, never guessed at "architecture" or "scope".
+    Always a concrete datetime — see `EXPECTED_DECISION_DATE_RULE`'s
+    docstring for why the `null` branch DESIGN.md also allows is never
+    taken here."""
 
+    blocking = decision.blocking
+    affects = decision.affects or "other"
     if blocking and affects == "architecture":
         return now + timedelta(days=3)
     if blocking and affects == "scope":

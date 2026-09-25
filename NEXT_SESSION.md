@@ -19,17 +19,20 @@ both empty.
 through T15 is already committed on this branch.
 
 **Decisions pending confirmation (not blockers — safe to keep building on):**
-- **#14** — entity file layout (`entities/<entity_id>.json`, flat). Flagged
-  since T07; still nothing downstream depends on the exact path.
 - **#19** — `check_readiness`'s three not-yet-buildable inputs
   (`confirmed_areas`, `unresolved_conflicts`, `review_approved`) are
   accepted as caller-supplied parameters, since nothing before T30 (Review
   mode) actually produces them. T30 is the task that needs to decide how
-  each gets persisted (likely new event types).
-- **#21** — `expected_decision_date` takes `affects` as an explicit
-  argument rather than deriving it from a `Decision` object, since
-  `Decision` carries no field to classify "affects architecture vs scope."
-  Revisit if a future task adds that field to `Decision`.
+  each gets persisted (likely new event types) — its own task file
+  confirms it needs T27 and T29 as prerequisites, so this stays pending
+  until the build actually reaches T30 in sequence.
+
+**Resolved since this note was last written (see `blockers.md` §4):**
+- **#14** — entity file layout confirmed as flat `entities/<entity_id>.json`,
+  not nested by type. No code change.
+- **#21** — `Decision.affects` is now a real field; `expected_decision_date`
+  takes the full `Decision` object again, matching the task file's original
+  signature. See `ppa/ledger/models.py` and `ppa/engines/dates.py`.
 
 **What T08–T15 actually built** (read each task's own Build record in
 `completed_tasks/` for full reasoning — this is just the map):

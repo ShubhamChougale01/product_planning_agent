@@ -19,6 +19,15 @@ NOW = datetime(2026, 9, 25, 9, 0, 0, tzinfo=timezone.utc)
 _DATETIME_NOW_CALL = re.compile(r"datetime\.now\(")
 
 
+class _Decision:
+    """A minimal `decision.blocking` / `decision.affects` duck-type double —
+    `expected_decision_date` doesn't require a real `Decision` entity."""
+
+    def __init__(self, blocking: bool, affects: str | None):
+        self.blocking = blocking
+        self.affects = affects
+
+
 # ---------------------------------------------------------------------------
 # Done when: the tier rule is stated in one readable place and is
 # overridable.
@@ -26,23 +35,29 @@ _DATETIME_NOW_CALL = re.compile(r"datetime\.now\(")
 
 
 def test_blocking_architecture_gets_three_days():
-    assert expected_decision_date(blocking=True, affects="architecture", now=NOW) == NOW + timedelta(days=3)
+    assert expected_decision_date(_Decision(True, "architecture"), NOW) == NOW + timedelta(days=3)
 
 
 def test_blocking_scope_gets_five_days():
-    assert expected_decision_date(blocking=True, affects="scope", now=NOW) == NOW + timedelta(days=5)
+    assert expected_decision_date(_Decision(True, "scope"), NOW) == NOW + timedelta(days=5)
 
 
 def test_non_blocking_gets_fourteen_days_regardless_of_affects():
-    assert expected_decision_date(blocking=False, affects="architecture", now=NOW) == NOW + timedelta(days=14)
-    assert expected_decision_date(blocking=False, affects="other", now=NOW) == NOW + timedelta(days=14)
+    assert expected_decision_date(_Decision(False, "architecture"), NOW) == NOW + timedelta(days=14)
+    assert expected_decision_date(_Decision(False, "other"), NOW) == NOW + timedelta(days=14)
 
 
 def test_blocking_other_falls_back_to_fourteen_days():
     # Only "architecture" and "scope" get the shorter tiers; a blocking
     # decision that affects neither still gets the plain +14 day default,
     # not a silent architecture-tier guess.
-    assert expected_decision_date(blocking=True, affects="other", now=NOW) == NOW + timedelta(days=14)
+    assert expected_decision_date(_Decision(True, "other"), NOW) == NOW + timedelta(days=14)
+
+
+def test_blocking_unclassified_affects_falls_back_to_fourteen_days():
+    # decision #21: affects=None (unclassified) must never be silently
+    # guessed at "architecture" or "scope" — it reads as "other".
+    assert expected_decision_date(_Decision(True, None), NOW) == NOW + timedelta(days=14)
 
 
 def test_the_rule_is_stated_in_one_readable_place():
@@ -53,7 +68,7 @@ def test_the_rule_is_stated_in_one_readable_place():
 
 
 def test_rule_result_is_a_plain_overridable_value():
-    result = expected_decision_date(blocking=True, affects="architecture", now=NOW)
+    result = expected_decision_date(_Decision(True, "architecture"), NOW)
     overridden = result + timedelta(days=100)
     assert overridden != result
 
@@ -107,7 +122,7 @@ def test_functions_are_correct_under_a_frozen_clock():
     frozen_now = datetime.now(timezone.utc)
     assert frozen_now == NOW
 
-    assert expected_decision_date(blocking=True, affects="scope", now=frozen_now) == NOW + timedelta(days=5)
+    assert expected_decision_date(_Decision(True, "scope"), frozen_now) == NOW + timedelta(days=5)
     assert is_overdue(frozen_now - timedelta(hours=1), frozen_now) is True
 
 
