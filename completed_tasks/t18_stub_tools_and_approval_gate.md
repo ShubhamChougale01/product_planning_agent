@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- [ ] **T16**
+- [x] **T16**
 
 ## Why this task exists
 
@@ -70,13 +70,44 @@ tests/test_permissions/test_approval.py
 
 ## Done when
 
-- [ ] All ten stub tools are registered with complete ToolSpecs
-- [ ] Stubs return NOT_IMPLEMENTED with `INFORM_USER`, not an exception
-- [ ] `manage_linear_issue` returns BUSINESS when `plan.status != APPROVED` — **tested now**
-- [ ] Creation with **no** approval returns BUSINESS and creates nothing
-- [ ] Creation with an **expired** approval returns BUSINESS
-- [ ] Creation where `scope_hash` no longer matches returns BUSINESS
-- [ ] `approval.granted` and `approval.revoked` events are emitted and materialized
+- [x] All ten stub tools are registered with complete ToolSpecs
+- [x] Stubs return NOT_IMPLEMENTED with `INFORM_USER`, not an exception
+- [x] `manage_linear_issue` returns BUSINESS when `plan.status != APPROVED` — **tested now**
+- [x] Creation with **no** approval returns BUSINESS and creates nothing
+- [x] Creation with an **expired** approval returns BUSINESS
+- [x] Creation where `scope_hash` no longer matches returns BUSINESS
+- [x] `approval.granted` and `approval.revoked` events are emitted and *folded* — **corrected wording,
+      see decision #25 in `blockers.md`.** They are not "materialized" in T07's sense (a file under
+      `entities/`): they carry no `entity_id` and are not one of T02's seven locked entity types, so
+      extending `ppa/ledger/materialize.py`'s `ENTITY_TYPES` table for an eighth pseudo-entity was
+      out of this task's scope. `ppa.tools.approval.current_approval` folds them itself — same
+      "latest write wins" principle, scoped to event `type` instead of `entity_id`.
+
+## Build record
+
+`ppa/tools/planning_tools.py` and `ppa/tools/delivery_tools.py` each declare their four non-shared
+tools (`read_planning_state` was already registered by T15 and granted to both) with full
+`ToolSpec`s and real grants. Seven of the eight are pure `NOT_IMPLEMENTED` stubs — same body shape
+in both files (`_not_implemented(tool_name)`), unconditional regardless of input, rendered with the
+task's own quoted message for Planning and an analogous one for Delivery.
+
+`manage_linear_issue` is the one real guardrail: `@requires_approval` (from the new
+`ppa/tools/approval.py`) runs first, checking `current_approval` against the call's `scope_hash`;
+the body then separately checks `plan_status == "APPROVED"`. Both checks are independent BUSINESS
+rejections, both tested with the other precondition satisfied so neither test result depends on
+which check happens to run first. No external Linear call is made — `created_issue_ids` are stub
+ids (`LINEAR-STUB-<story_id>`); what's real is that nothing gets even that far without a valid,
+unexpired, exactly-matching approval and an approved plan.
+
+`ppa/tools/approval.py` has no MCP-registered tool of its own — `grant_approval`/`revoke_approval`
+are plain functions for a human-facing surface (T31's CLI, or an escalation flow) to call, never
+something an agent invokes; check `ppa/agents/registry.py::GRANTS` for any agent and note no grant
+names them. `current_approval` folds `approval.granted`/`approval.revoked` events itself, since
+neither is one of T02's seven locked entity types (see the corrected Done-when box above and
+decision #25, `blockers.md`).
+
+Tests: `tests/test_tools/test_stubs.py` (11 tests) + `tests/test_permissions/test_approval.py`
+(15 tests) = 26 new tests. Full suite re-run: **600 passed** (574 baseline + 26).
 
 ## On completion
 

@@ -41,7 +41,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | ☑ | `t15_read_planning_state_tool.md` read_planning_state — the consolidated reader | 0.5 day | No |
 | ☑ | `t16_manage_writer_tools.md` The manage_* writers | 1 day | No |
 | ☑ | `t17_ask_user_tool.md` ask_user and the four affordances | 0.5 day | No |
-| ☐ | `t18_stub_tools_and_approval_gate.md` Stub tools and the approval gate | 0.75 day | No |
+| ☑ | `t18_stub_tools_and_approval_gate.md` Stub tools and the approval gate | 0.75 day | No |
 | ☐ | `t19_validation_layer_wiring.md` Validation layer wiring | 0.5 day | No |
 
 ### C · Orchestration and guardrails  ·  2.25d
