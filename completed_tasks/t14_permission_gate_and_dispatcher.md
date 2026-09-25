@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- [ ] **T13**
+- [x] **T13**
 
 ## Why this task exists
 
@@ -58,12 +58,34 @@ tests/test_permissions/test_grants.py
 
 ## Done when
 
-- [ ] A test enumerates **every** (agent, tool) pair against the grant table
-- [ ] Discovery calling `manage_linear_issue` returns PERMISSION and the handler body never runs — assert with a spy
-- [ ] Delivery calling `manage_requirement` returns PERMISSION
-- [ ] Caller identity cannot be influenced by tool arguments — test with a hostile `agent_id` in args
-- [ ] Permission is checked before schema validation — a malformed call from an ungranted agent yields PERMISSION, not VALIDATION
-- [ ] Every rejection appears in the audit log
+- [x] A test enumerates **every** (agent, tool) pair against the grant table
+- [x] Discovery calling `manage_linear_issue` returns PERMISSION and the handler body never runs — assert with a spy
+- [x] Delivery calling `manage_requirement` returns PERMISSION
+- [x] Caller identity cannot be influenced by tool arguments — test with a hostile `agent_id` in args
+- [x] Permission is checked before schema validation — a malformed call from an ungranted agent yields PERMISSION, not VALIDATION
+- [x] Every rejection appears in the audit log
+
+## Build record
+
+Built `ppa/agents/registry.py` (`GRANTS`, `grant_for` — the static agent -> tool table, verbatim from
+this task's own table) and `ppa/tools/dispatch.py` (`InvocationContext`, `dispatch`,
+`permission_error`). `dispatch` is `async def` (tool handlers are async per the SDK contract from
+T13); tests call it via `asyncio.run(...)` in plain sync test functions rather than declaring
+`async def test_...`, since no async pytest plugin mode is configured in this project and an
+unmarked async test silently never runs its body — a dangerous way to test a permission boundary.
+
+Beyond the permission check itself, `dispatch` also distinguishes a granted-but-not-yet-registered
+tool (most tools, before T15-T18 build them) as `NOT_IMPLEMENTED` rather than crashing — using the
+error taxonomy T05 already built for exactly this case. A granted-and-registered call executes the
+real handler and is audited too (`operation` inferred as `read`/`write` from the tool name's own
+`read_*` prefix convention, since `ToolSpec` carries nothing more precise to key on yet).
+
+`ppa/agents/registry.py`'s stub docstring incorrectly said "filled in by T20" (logged as decision
+#23, same root cause as blockers #2/#3) — T14 is the file's actual first task; T20 only extends it.
+
+Tests: `tests/test_permissions/test_grants.py`, 15 test functions (136 collected once
+the every-(agent,tool)-pair parametrization expands). Full suite re-run: **491 passed**
+(355 after T13, +136).
 
 ## On completion
 
