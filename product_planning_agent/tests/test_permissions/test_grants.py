@@ -19,15 +19,18 @@ from ppa.agents.registry import GRANTS, grant_for
 from ppa.ledger.audit import read_audit_records
 from ppa.results.categories import ErrorCategory
 from ppa.tools.dispatch import InvocationContext, dispatch
-from ppa.tools.registry import clear_registry, register
+from ppa.tools.registry import clear_registry, register, restore, snapshot
 from ppa.tools.spec import ToolSpec
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
+    # snapshot/restore, not a bare clear_registry() — see
+    # tests/test_tools/test_registry.py's own fixture for why.
+    saved = snapshot()
     clear_registry()
     yield
-    clear_registry()
+    restore(saved)
 
 
 def _spec(name: str) -> ToolSpec:

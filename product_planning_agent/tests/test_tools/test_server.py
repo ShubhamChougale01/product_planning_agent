@@ -9,16 +9,19 @@ import inspect
 
 import pytest
 
-from ppa.tools.registry import clear_registry, register
+from ppa.tools.registry import clear_registry, register, restore, snapshot
 from ppa.tools.server import allowed_tool_names, granted_sdk_tools, server_for
 from ppa.tools.spec import ToolSpec, render_description
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
+    # snapshot/restore, not a bare clear_registry() — see
+    # tests/test_tools/test_registry.py's own fixture for why.
+    saved = snapshot()
     clear_registry()
     yield
-    clear_registry()
+    restore(saved)
 
 
 async def _noop_handler(args: dict) -> dict:

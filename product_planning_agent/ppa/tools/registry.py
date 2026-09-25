@@ -128,6 +128,29 @@ def tools_for_agent(agent_id: str) -> list[RegisteredTool]:
 def clear_registry() -> None:
     """Test-only. Production code never calls this — real tool modules
     register once at import time and stay registered for the process's
-    life, same as any other module-level side effect."""
+    life, same as any other module-level side effect.
+
+    **Prefer `snapshot`/`restore` over a bare `clear_registry()` in a test
+    fixture.** Python only runs a module's top-level `register()` call once,
+    the first time it is ever imported — so if some other already-imported
+    module (a real `ppa.tools.discovery_tools`, say) registered a tool
+    before this test session got to it, a bare `clear_registry()` erases
+    that registration permanently: nothing will ever re-run the import to
+    put it back. `snapshot`/`restore` isolates a test's own fake
+    registrations without destroying real ones that happened to exist
+    first."""
 
     _REGISTRY.clear()
+
+
+def snapshot() -> dict[str, RegisteredTool]:
+    """A shallow copy of the current registry, for a test fixture to
+    restore after clearing — see `clear_registry`'s own docstring for why
+    this is the safer default over a bare clear."""
+
+    return dict(_REGISTRY)
+
+
+def restore(saved: dict[str, RegisteredTool]) -> None:
+    _REGISTRY.clear()
+    _REGISTRY.update(saved)

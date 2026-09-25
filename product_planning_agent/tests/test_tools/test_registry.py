@@ -7,15 +7,21 @@ from __future__ import annotations
 
 import pytest
 
-from ppa.tools.registry import clear_registry, get, register, tools_for_agent
+from ppa.tools.registry import clear_registry, get, register, restore, snapshot, tools_for_agent
 from ppa.tools.spec import ToolSpec
 
 
 @pytest.fixture(autouse=True)
 def _clean_registry():
+    # snapshot/restore, not a bare clear_registry(): a real tool module
+    # (e.g. ppa.tools.discovery_tools) may already be registered from an
+    # earlier import elsewhere in the test session, and re-importing it
+    # here would not re-run its registration — see registry.clear_registry's
+    # own docstring.
+    saved = snapshot()
     clear_registry()
     yield
-    clear_registry()
+    restore(saved)
 
 
 async def _noop_handler(args: dict) -> dict:
