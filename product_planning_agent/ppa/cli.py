@@ -44,9 +44,26 @@ def doctor() -> None:
 
 
 @app.command()
-def new(name: str) -> None:
+def new(
+    name: str,
+    seed_requirement: str = typer.Option(
+        ..., "--seed-requirement", "--seed", help="A rough one-line requirement to start from."
+    ),
+    role: str = typer.Option("engineer", help="engineer | product | mixed"),
+    technical_depth: str = typer.Option("medium", help="high | medium | low"),
+    domain_familiarity: str = typer.Option("medium", help="high | medium | low"),
+) -> None:
     """Start a new planning project."""
-    _not_yet("new", "T08 (project lifecycle) and T31 (CLI)")
+    from ppa.config.profiles import UserProfile
+    from ppa.ledger.project import VERBATIM_STORAGE_NOTICE, create_project
+
+    profile = UserProfile(
+        role=role, technical_depth=technical_depth, domain_familiarity=domain_familiarity
+    )
+    project = create_project(name, seed_requirement, profile)
+
+    console.print(f"[green]Created[/green] project [bold]{project.slug}[/bold] at {project.path}")
+    console.print(f"\n[yellow]{VERBATIM_STORAGE_NOTICE}[/yellow]")
 
 
 @app.command()

@@ -26,7 +26,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | ☑ | `t05_result_envelope_and_errors.md` Result envelope and error taxonomy | 0.5 day | No |
 | ☑ | `t06_event_log_and_secret_scanning.md` Event log with inbound secret scanning | 0.75 day | No |
 | ☑ | `t07_materializer_ids_idempotency.md` Materializer, ID allocation, idempotency | 0.75 day | No |
-| ☐ | `t08_project_lifecycle_audit_git.md` Project lifecycle, audit log, git | 0.5 day | No |
+| ☑ | `t08_project_lifecycle_audit_git.md` Project lifecycle, audit log, git | 0.5 day | No |
 | ☐ | `t09_digest_projection.md` Digest projection | 0.5 day | No |
 | ☐ | `t10_coverage_and_readiness_engines.md` Coverage and readiness engines | 0.75 day | No |
 | ☐ | `t11_impact_graph_and_conflicts.md` Impact graph and conflict detection | 0.75 day | No |

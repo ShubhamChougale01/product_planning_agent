@@ -170,6 +170,50 @@ def _write_project_meta(path: Path, meta: dict[str, Any]) -> None:
     os.replace(tmp_path, path)
 
 
+def project_meta_path(events_path: Path | str) -> Path:
+    """Public accessor for `project.json`'s path — `ppa/ledger/project.py`
+    (T08) stores project-level fields (name, slug, profile, workflow_state)
+    in the same file as T07's own `id_counters`/`idempotency`, under the same
+    per-path lock (`path_lock`, below), so the two never race each other."""
+
+    return _project_meta_path(Path(events_path))
+
+
+def read_project_meta(events_path: Path | str) -> dict[str, Any]:
+    """Read `project.json` beside `events_path`. Caller should hold
+    `path_lock(events_path)` if this read-modify-write needs to be atomic
+    against concurrent writers."""
+
+    return _read_project_meta(project_meta_path(events_path))
+
+
+def write_project_meta(events_path: Path | str, meta: dict[str, Any]) -> None:
+    """Write `project.json` beside `events_path`, atomically (temp file +
+    `os.replace`), same as `allocate_id`'s own writes."""
+
+    _write_project_meta(project_meta_path(events_path), meta)
+
+
+def path_lock(path: Path | str) -> threading.Lock:
+    """The same in-process, per-resolved-path lock `append_event` and
+    `allocate_id` take — exposed so other modules (`ppa/ledger/project.py`)
+    can guard their own `project.json` updates against those same writers,
+    rather than inventing a second, uncoordinated lock over the same file."""
+
+    return _lock_for(Path(path))
+
+
+def ledger_version(path: Path | str) -> int:
+    """The number of the most recently appended event for `path` — DESIGN.md
+    §2.16's "ledger 12 -> 13" audit vocabulary. Zero for an empty or
+    not-yet-created log. Always computed from `events.ndjson` itself, never
+    cached in `project.json`, so it can never drift from the one real source
+    of truth (unlike `id_counters`, nothing here needs to survive a process
+    restart faster than a file read)."""
+
+    return _read_last_event_number(Path(path))
+
+
 def allocate_id(prefix: str, path: Path | str) -> str:
     """Allocate the next sequential id for `prefix` (e.g. `"REQ"` ->
     `"REQ-001"`) from the counters kept in `project.json` beside `path`,
