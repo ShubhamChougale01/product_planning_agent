@@ -1,2 +1,84 @@
-# Workflow state transitions.
-# Not implemented yet — filled in by T20.
+# Global workflow state transitions (T20, DESIGN.md §2.5, S6.2).
+#
+# Data, not conditionals — ppa/workflow/machine.py only loads and queries
+# this file; no workflow legality rule lives in Python. v1 only ever walks
+# DISCOVERY -> DISCOVERY_VALIDATED and stops there (advancing further
+# returns NOT_IMPLEMENTED from the Planning stub, per PlanningAgent) —
+# PLANNING/PLAN_REVIEW/PLAN_APPROVED/DELIVERY/COMPLETE are declared here so
+# the machine (and CHANGE_REQUESTED's reachability from every state) is
+# provably correct end to end before those states are reachable in
+# practice, the same "build the boundary before the feature" reasoning T18
+# already applied to the Planning/Delivery tool stubs.
+#
+# CHANGE_REQUESTED is reachable from every other state (DESIGN.md §2.5:
+# "reachable from every state above"), and rewinds to any earlier state —
+# which earlier state is impact analysis's call (T30), not this table's;
+# the table only says the move is *legal*, never which one a given change
+# should pick.
+
+states:
+  - DISCOVERY
+  - DISCOVERY_VALIDATED
+  - PLANNING
+  - PLAN_REVIEW
+  - PLAN_APPROVED
+  - DELIVERY
+  - COMPLETE
+  - CHANGE_REQUESTED
+
+transitions:
+  DISCOVERY:
+    - to: DISCOVERY_VALIDATED
+      condition: validate_discovery_state
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  DISCOVERY_VALIDATED:
+    - to: DISCOVERY
+      condition: validate_discovery_state_failed
+    - to: PLANNING
+      condition: advance_to_planning
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  PLANNING:
+    - to: PLAN_REVIEW
+      condition: plan_drafted
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  PLAN_REVIEW:
+    - to: PLAN_APPROVED
+      condition: user_approved_plan
+    - to: PLANNING
+      condition: plan_rejected
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  PLAN_APPROVED:
+    - to: DELIVERY
+      condition: delivery_started
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  DELIVERY:
+    - to: COMPLETE
+      condition: delivery_finished
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  COMPLETE:
+    - to: CHANGE_REQUESTED
+      condition: change_requested
+
+  CHANGE_REQUESTED:
+    - to: DISCOVERY
+      condition: rewind_to_discovery
+    - to: PLANNING
+      condition: rewind_to_planning
+    - to: PLAN_REVIEW
+      condition: rewind_to_plan_review
+    - to: PLAN_APPROVED
+      condition: rewind_to_plan_approved
+    - to: DELIVERY
+      condition: rewind_to_delivery

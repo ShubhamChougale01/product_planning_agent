@@ -39,16 +39,16 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | ☑ | `t13_toolspec_contract_and_registry.md` ToolSpec contract and tool registry | 1 day | No |
 | ☑ | `t14_permission_gate_and_dispatcher.md` Permission gate and dispatcher | 0.5 day | No |
 | ☑ | `t15_read_planning_state_tool.md` read_planning_state — the consolidated reader | 0.5 day | No |
-| ☐ | `t16_manage_writer_tools.md` The manage_* writers | 1 day | No |
-| ☐ | `t17_ask_user_tool.md` ask_user and the four affordances | 0.5 day | No |
-| ☐ | `t18_stub_tools_and_approval_gate.md` Stub tools and the approval gate | 0.75 day | No |
-| ☐ | `t19_validation_layer_wiring.md` Validation layer wiring | 0.5 day | No |
+| ☑ | `t16_manage_writer_tools.md` The manage_* writers | 1 day | No |
+| ☑ | `t17_ask_user_tool.md` ask_user and the four affordances | 0.5 day | No |
+| ☑ | `t18_stub_tools_and_approval_gate.md` Stub tools and the approval gate | 0.75 day | No |
+| ☑ | `t19_validation_layer_wiring.md` Validation layer wiring | 0.5 day | No |
 
 ### C · Orchestration and guardrails  ·  2.25d
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t20_agent_protocol_and_workflow.md` Agent protocol and workflow state machine | 0.75 day | No |
+| ☑ | `t20_agent_protocol_and_workflow.md` Agent protocol and workflow state machine | 0.75 day | No |
 | ☐ | `t21_preconditions_and_outer_loop.md` Preconditions and the outer loop | 1 day | Yes — first agent invocation |
 | ☐ | `t22_guardrail_suite.md` Guardrail suite | 0.5 day | No |
 
