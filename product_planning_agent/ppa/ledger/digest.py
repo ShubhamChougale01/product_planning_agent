@@ -19,6 +19,13 @@ second, independent way. This module only renders whatever `coverage`
 mapping it is handed; a caller built before T10 exists can pass `{}` (every
 area then reads as `UNTOUCHED`) without this module needing to know that
 engine exists yet.
+
+**"Due within 3 days" reuses T12's own engines** (`ppa/engines/open_items.py`
+`collect_open_items` + `ppa/engines/dates.py` `due_within`) rather than
+re-deriving open items or date-window math here a second time — this module
+was written before T12 existed and originally hand-rolled a narrower,
+Decision-only version of this section; see `blockers.md` decision #21 for
+why it was replaced rather than left to drift from the real engines.
 """
 
 from __future__ import annotations
@@ -30,6 +37,8 @@ from typing import Mapping
 
 from ppa.config.areas import AREA_KEYS, AREAS_BY_KEY, AreaStatus
 from ppa.config.profiles import critical_areas
+from ppa.engines.dates import due_within
+from ppa.engines.open_items import collect_open_items
 from ppa.ledger.events import EventType
 from ppa.ledger.materialize import current_entities, entity_type_for
 from ppa.ledger.models import BaseEntity, EntityType
@@ -97,27 +106,6 @@ def _seed_requirement(events_path: Path) -> str | None:
                 after = data.get("after") or {}
                 return after.get("seed_requirement")
     return None
-
-
-def _due_soon_decisions(entities: Mapping[str, BaseEntity], now: datetime) -> list[str]:
-    """Open Decisions whose `expected_decision_date` falls within the next
-    `_DUE_SOON_WINDOW_DAYS` days — a plain filter over a field the entity
-    already carries, not the rule that derives that date in the first place
-    (T12 owns deriving it; this only reads it)."""
-
-    due_soon: list[str] = []
-    for entity_id, entity in entities.items():
-        if entity_type_for(entity_id) is not EntityType.DECISION:
-            continue
-        if entity.status not in {"OPEN", "DECIDE_LATER"}:
-            continue
-        expected = entity.expected_decision_date
-        if expected is None:
-            continue
-        days_out = (expected - now).days
-        if 0 <= days_out <= _DUE_SOON_WINDOW_DAYS:
-            due_soon.append(_title_for(entity_id, entity))
-    return due_soon
 
 
 def generate_digest(
@@ -199,10 +187,10 @@ def generate_digest(
     for entity_id, entity in sorted(rest, key=lambda pair: pair[0]):
         lines.append(f"- {_title_for(entity_id, entity)}")
 
-    due_soon = _due_soon_decisions(entities, now)
+    due_soon = due_within(collect_open_items(entities), _DUE_SOON_WINDOW_DAYS, now)
     lines.append("")
     lines.append(f"## Due within {_DUE_SOON_WINDOW_DAYS} days ({len(due_soon)})")
-    lines.extend(f"- {title}" for title in due_soon)
+    lines.extend(f"- {item.entity_id}: {item.title}" for item in due_soon)
     if not due_soon:
         lines.append("(none)")
 
