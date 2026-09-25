@@ -58,6 +58,7 @@ from ppa.results.categories import CATEGORY_RULES, ErrorCategory
 from ppa.results.envelope import ErrorInfo, ToolResult
 from ppa.tools.registry import register
 from ppa.tools.spec import ToolSpec
+from ppa.validation import infer_validation_layer
 
 _MAX_QUESTIONS = 5
 _ANSWER_KINDS = {"answered", "dont_know", "decide_later", "not_relevant"}
@@ -271,7 +272,8 @@ def ask_user(
             agent=agent_id, tool="ask_user", operation="reject", workflow_state=workflow_state,
             inputs={"questions": questions}, reason="batch validation failed",
             result=AuditResult(success=False, category=invalid.error.category, code=invalid.error.code),
-            path=project.audit_path, ledger_version_before=version, ledger_version_after=version,
+            path=project.audit_path, validation_layer_failed=infer_validation_layer(invalid.error),
+            ledger_version_before=version, ledger_version_after=version,
         )
         return invalid
 

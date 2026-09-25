@@ -25,6 +25,7 @@ from ppa.results.envelope import ErrorInfo, ToolResult
 from ppa.tools.approval import compute_scope_hash, requires_approval
 from ppa.tools.registry import register
 from ppa.tools.spec import ToolSpec
+from ppa.validation import infer_validation_layer
 
 _STUB_MESSAGE = "Delivery is v3. Planning must be approved before delivery tools do anything."
 
@@ -90,7 +91,8 @@ def _audit_linear(project: Project, *, agent_id: str, workflow_state: str, args:
         agent=agent_id, tool="manage_linear_issue", operation="write" if result.success else "reject",
         workflow_state=workflow_state, inputs=args, reason=reason,
         result=AuditResult(success=result.success, category=error.category if error else None, code=error.code if error else None),
-        path=project.audit_path, ledger_version_before=version, ledger_version_after=version,
+        path=project.audit_path, validation_layer_failed=infer_validation_layer(error),
+        ledger_version_before=version, ledger_version_after=version,
     )
     return result
 

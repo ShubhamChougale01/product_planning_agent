@@ -41,11 +41,12 @@ from ppa.ledger.models import Assumption, BaseEntity, Decision, EntityType, Hist
 from ppa.ledger.project import DEFAULT_PROJECTS_ROOT, Project, open_project
 from ppa.ledger.secrets import scan_and_redact
 from ppa.ledger.store import append_event_with_id, ledger_version
-from ppa.ledger.transitions import IllegalTransition, validate_transition
 from ppa.results.categories import CATEGORY_RULES, ErrorCategory, RecoveryAction
 from ppa.results.envelope import ErrorInfo, ToolResult
 from ppa.tools.registry import register
 from ppa.tools.spec import ToolSpec
+from ppa.validation import infer_validation_layer, semantic as semantic_layer
+from ppa.validation.consistency import check_transition
 
 _MAX_ENTITY_RESULTS = 20
 
@@ -386,6 +387,7 @@ def _audit_write(
         ),
         path=project.audit_path,
         entity_id=entity_id,
+        validation_layer_failed=infer_validation_layer(error),
         ledger_version_before=ledger_version_before,
         ledger_version_after=ledger_version_after,
     )
@@ -557,11 +559,11 @@ def _generic_transition(
         return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="no fields to update", result=result)
 
     new_status = config.new_status or entity.status
-    try:
-        validate_transition(entity_type, entity.status, new_status)
-    except IllegalTransition as exc:
-        result = _error(ErrorCategory.BUSINESS, "ILLEGAL_TRANSITION", f"{tool}({operation}): {exc}")
-        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason=str(exc), result=result)
+    transition_error = check_transition(entity_type, entity.status, new_status)
+    if transition_error is not None:
+        description = transition_error.error.description
+        result = _error(ErrorCategory.BUSINESS, transition_error.error.code, f"{tool}({operation}): {description}")
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason=description, result=result)
 
     if semantic_check is not None:
         semantic_error = semantic_check(entities, entity, kwargs)
@@ -716,6 +718,15 @@ def _requirement_confirm_semantic_check(entities: Mapping[str, BaseEntity], enti
             context={"blocking_unknowns": blockers},
         )
     return None
+
+
+semantic_layer.register_check("manage_requirement.confirm", _requirement_confirm_semantic_check)
+"""Makes this rule discoverable from `ppa.validation.semantic` (T19) without
+duplicating it — `manage_requirement`'s own `confirm` branch below still
+calls the function directly, this registration is for external
+discoverability/testability only. Keyed by `"<tool>.<operation>"` since the
+rule is confirm-specific, not a blanket rule for every `manage_requirement`
+operation."""
 
 
 _REQUIREMENT_OPS: dict[str, _OpConfig] = {

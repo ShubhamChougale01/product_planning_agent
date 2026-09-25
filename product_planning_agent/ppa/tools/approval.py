@@ -52,8 +52,9 @@ from typing import Any, Callable, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
+from ppa.ledger.audit import AuditResult, record_audit
 from ppa.ledger.events import Event, EventType
-from ppa.ledger.store import append_event
+from ppa.ledger.store import append_event, ledger_version
 from ppa.results.categories import CATEGORY_RULES, ErrorCategory
 from ppa.results.envelope import ErrorInfo, ToolResult
 
@@ -206,25 +207,38 @@ def requires_approval(scope_fn: ScopeFn) -> Callable[[F], F]:
     def decorator(fn: F) -> F:
         @functools.wraps(fn)
         def wrapper(operation: str, project: Any, **kwargs: Any) -> ToolResult:
+            def _reject(code: str, description: str, context: dict[str, Any] | None = None) -> ToolResult:
+                result = _error(ErrorCategory.BUSINESS, code, description, context)
+                agent_id = kwargs.get("agent_id", "delivery")
+                workflow_state = kwargs.get("workflow_state", "DISCOVERY")
+                version = ledger_version(project.events_path)
+                record_audit(
+                    agent=agent_id, tool=fn.__name__, operation="reject", workflow_state=workflow_state,
+                    inputs={"operation": operation, **kwargs}, reason=description,
+                    result=AuditResult(success=False, category=ErrorCategory.BUSINESS, code=code),
+                    path=project.audit_path, ledger_version_before=version, ledger_version_after=version,
+                )
+                return result
+
             scoped = scope_fn(operation, kwargs)
             if scoped is not None:
                 scope_hash, story_ids = scoped
                 now = kwargs.get("now") or datetime.now(timezone.utc)
                 approval = current_approval(project.events_path)
                 if approval is None:
-                    return _error(
-                        ErrorCategory.BUSINESS, "APPROVAL_REQUIRED",
+                    return _reject(
+                        "APPROVAL_REQUIRED",
                         f"{fn.__name__}({operation}): no approval on record for this batch of {len(story_ids)} story ids",
                         context={"story_ids": story_ids},
                     )
                 if now > approval.expires_at:
-                    return _error(
-                        ErrorCategory.BUSINESS, "APPROVAL_EXPIRED",
+                    return _reject(
+                        "APPROVAL_EXPIRED",
                         f"{fn.__name__}({operation}): approval expired at {approval.expires_at.isoformat()}, now {now.isoformat()}",
                     )
                 if approval.scope_hash != scope_hash:
-                    return _error(
-                        ErrorCategory.BUSINESS, "APPROVAL_SCOPE_MISMATCH",
+                    return _reject(
+                        "APPROVAL_SCOPE_MISMATCH",
                         f"{fn.__name__}({operation}): approval scope_hash does not match this exact story set — "
                         "the set changed since approval, re-approve before retrying",
                     )
