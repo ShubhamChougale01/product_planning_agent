@@ -31,7 +31,10 @@ include = ["ppa*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m \"not live_model\""
+markers = [
+    "live_model: makes a real call through ppa.providers.model.ModelProvider (real cost, real latency). Excluded from the default run by addopts above — run explicitly with `pytest -m live_model`. See decision #31, blockers.md.",
+]
 
 [tool.coverage.run]
 source = ["ppa"]

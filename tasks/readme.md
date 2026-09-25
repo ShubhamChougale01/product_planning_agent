@@ -56,7 +56,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t23_discovery_prompt_and_modes.md` Discovery system prompt and internal modes | 1 day | Yes |
+| ☑ | `t23_discovery_prompt_and_modes.md` Discovery system prompt and internal modes | 1 day | Yes |
 | ☐ | `t24_intake_mode.md` Intake mode — the opening move | 0.5 day | Yes |
 | ☐ | `t25_clarify_mode_question_engine.md` Clarify mode and the question engine | 1 day | Yes |
 | ☐ | `t26_dont_know_routing.md` \"I don't know\" classification and routing | 1 day | Yes |
