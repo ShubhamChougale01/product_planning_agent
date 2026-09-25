@@ -48,7 +48,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t20_agent_protocol_and_workflow.md` Agent protocol and workflow state machine | 0.75 day | No |
+| ☑ | `t20_agent_protocol_and_workflow.md` Agent protocol and workflow state machine | 0.75 day | No |
 | ☐ | `t21_preconditions_and_outer_loop.md` Preconditions and the outer loop | 1 day | Yes — first agent invocation |
 | ☐ | `t22_guardrail_suite.md` Guardrail suite | 0.5 day | No |
 
