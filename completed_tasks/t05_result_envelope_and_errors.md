@@ -69,12 +69,12 @@ tests/test_results/test_envelope.py
 
 ## Done when
 
-- [ ] Constructing `ErrorInfo` without `recommended_action` raises
-- [ ] A category/action pair outside the table above raises
-- [ ] `TRANSIENT` is the only category with `is_retryable=True`
-- [ ] `success=True, result_count=0` is expressible and is not an error
-- [ ] `degraded=True` is expressible alongside `success=True`
-- [ ] A test asserts the full mapping table exactly as written above
+- [x] Constructing `ErrorInfo` without `recommended_action` raises
+- [x] A category/action pair outside the table above raises
+- [x] `TRANSIENT` is the only category with `is_retryable=True`
+- [x] `success=True, result_count=0` is expressible and is not an error
+- [x] `degraded=True` is expressible alongside `success=True`
+- [x] A test asserts the full mapping table exactly as written above
 
 ## Traps
 
@@ -95,3 +95,43 @@ callers branch on.
    ```
 
 5. Open `tasks/README.md` and tick `T05` on the board.
+
+---
+
+## Build record (completed 2026-09-24)
+
+### One rule added beyond the Done-when list
+
+`ToolResult` also enforces `success=True` ⇒ `error is None` and `success=False` ⇒ `error is not None`.
+Not its own Done-when box, but a direct, mechanical consequence of §2.12's own JSON example and
+the "three states, not two" description — an envelope with `success=False` and no `error` would
+have nothing for recovery logic to branch on, which is exactly what this task exists to prevent.
+No user confirmation needed for this one (unlike decisions #7/#11): it's implied by the spec
+itself, not a genuine gap requiring a judgment call.
+
+### No blockers, no bugs
+
+Stub files (`ppa/results/envelope.py`, `ppa/results/categories.py`) were correctly labeled from
+T01's scaffold — no naming mismatch this time. The category → action mapping in the task matched
+DESIGN.md §2.12 exactly, so `CATEGORY_RULES` needed no gap-filling.
+
+### What exists now
+
+```
+ppa/results/categories.py          # ErrorCategory, RecoveryAction, CATEGORY_RULES
+ppa/results/envelope.py            # ErrorInfo, ToolResult
+tests/test_results/test_envelope.py  # 26 tests
+```
+
+### Verification
+
+```
+$ .venv/Scripts/python.exe -m pytest tests/test_results/ -> 26 passed
+$ .venv/Scripts/python.exe -m pytest                      -> 198 passed
+```
+
+### Notes for whoever picks up T06
+
+- Every tool from T13 onward returns `ToolResult`, never a bare value or a raw exception.
+- `is_retryable` is advisory; branch retry/recovery logic on `recommended_action`, not on
+  `is_retryable` alone (the task's own trap warning — still true for every later task).

@@ -40,6 +40,19 @@ Obvious credential shapes are detected and redacted *before* anything is written
 log is append-only and there is no unwriting. That is a safety net, not a licence: describe an
 integration rather than pasting a connection string.
 
+## Single-writer assumption
+
+`ppa/ledger/store.py::append_event` locks around the read-counter/write-line/fsync sequence with an
+**in-process `threading.Lock`**, not an OS-level file lock. That is enough to make concurrent
+appends from multiple threads in the same process safe — no interleaved lines, no event id handed
+out twice — and it matches how this tool is actually run: one CLI process per project, one writer.
+
+**It does not protect against two separate OS processes appending to `events.ndjson` at the same
+time.** If you ever run two `ppa` processes against the same project concurrently, their writes can
+interleave or clobber each other's event ids. Don't do that. A future need for genuine multi-process
+writers would mean adding a real cross-process lock (`msvcrt.locking` on Windows, `fcntl.flock` on
+POSIX) — nothing here provides one today.
+
 ## Layout
 
 | Path | What lives there |

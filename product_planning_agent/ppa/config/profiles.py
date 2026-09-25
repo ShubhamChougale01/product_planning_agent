@@ -8,11 +8,13 @@ actual gate: an area in the returned set cannot be left as an assumption on
 the way to READY (DESIGN.md §6.4 — "Must confirm before READY: area is
 critical"), regardless of impact.
 
-**This table is an assumption, not something DESIGN.md spells out row by
-row** — only the one engineer/product example sentence in §6.1 is given
-verbatim. Filled in the same way T02's decision #7 handled a similar gap:
-built to a defensible rule, flagged in `blockers.md` for confirmation rather
-than buried here as if it were beyond question.
+**This table mirrors DESIGN.md §6.1's own "Engineer answers directly /
+Product answers directly / Neither → route" table exactly** (all twelve
+areas — that table was missed when this module was first built; see
+blockers.md decision #11 for the correction). "Direct" for a role means
+that area belongs in `_ROLE_CRITICAL_EXTRA` for the role; "needs
+guidance"/"partial" means routed to Guidance Mode instead, not forced
+critical for that role.
 """
 
 from __future__ import annotations
@@ -38,10 +40,21 @@ ALWAYS_CRITICAL: set[str] = {"problem", "users"}
 
 # Areas added on top of ALWAYS_CRITICAL, per role — the areas that role is
 # expected to nail down directly rather than lean on Guidance Mode for.
+# Matches DESIGN.md §6.1's table exactly, row by row:
+#   problem, users, jobs      -> engineer needs guidance, product direct
+#   scope_in, scope_out       -> both direct
+#   success                   -> engineer needs guidance, product direct
+#   constraints               -> engineer direct, product partial
+#   existing_system           -> engineer direct, product needs guidance
+#   platform, data, nfr       -> engineer direct, product needs guidance
+#   rollout                   -> engineer needs guidance, product direct
 _ROLE_CRITICAL_EXTRA: dict[Role, set[str]] = {
-    "engineer": {"nfr", "data", "platform"},
-    "product": {"success", "scope_in", "scope_out"},
-    "mixed": {"nfr", "data", "platform", "success", "scope_in", "scope_out"},
+    "engineer": {"scope_in", "scope_out", "constraints", "existing_system", "platform", "data", "nfr"},
+    "product": {"problem", "users", "jobs", "scope_in", "scope_out", "success", "rollout"},
+    "mixed": {
+        "scope_in", "scope_out", "constraints", "existing_system", "platform", "data", "nfr",
+        "problem", "users", "jobs", "success", "rollout",
+    },
 }
 
 
