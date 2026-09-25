@@ -164,6 +164,16 @@ class Assumption(BaseEntity, ConfidenceMixin):
     in until an outside party answers, not until the user does."""
 
 
+AffectsKind = Literal["architecture", "scope", "other"]
+"""DESIGN.md §1.13's tier rule for a blocking decision's expected-decision-
+date keys on whether the decision "affects architecture" or "affects scope".
+`Decision.affects` is the classification itself (resolved decision #21 —
+previously `ppa/engines/dates.py::expected_decision_date` took this as a
+caller-supplied argument because `Decision` carried no such field). `None`
+means unclassified, which `expected_decision_date` treats as `"other"` (the
+safe +14-day default), never a silent guess at "architecture" or "scope"."""
+
+
 class Decision(BaseEntity):
     """`DEC-nnn`. An open question with a resolution path, distinct from an
     Unknown: a Decision is already framed as a choice among options."""
@@ -173,6 +183,7 @@ class Decision(BaseEntity):
     status: Literal["OPEN", "DECIDE_LATER", "DECIDED", "SUPERSEDED"] = "OPEN"
     question: str
     blocking: bool = False
+    affects: AffectsKind | None = None
     owner: str
     owner_type: Literal["user", "external", "agent"]
     identified_at: datetime
