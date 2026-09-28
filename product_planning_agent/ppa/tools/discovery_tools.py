@@ -21,6 +21,7 @@ never prose — narration is the model's job, at the point of use.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
@@ -814,7 +815,15 @@ def _assumption_create(
         status="PROPOSED", statement=statement, reason=reason_text, impact=kwargs["impact"],
         affects_requirements=list(kwargs.get("affects_requirements") or []),
         affects_areas=list(kwargs.get("affects_areas") or []),
-        user_confirmation_required=kwargs.get("user_confirmation_required", False),
+        # Bug #11 (blockers.md): always True, never caller-supplied — DESIGN.md
+        # Part 1's own rule is unconditional ("No silent assumptions, ever.
+        # Every inference becomes an ASM with user_confirmation_required"),
+        # the same "computed by the tool, can never be silently wrong"
+        # pattern decision #24 already applied to expected_decision_date.
+        # Defaulting to False when the caller omitted it (the previous
+        # behavior) let every assumption a real model actually created come
+        # back unflagged, verified live.
+        user_confirmation_required=True,
         confirmed_at=None, confirmed_by=None, provisional=kwargs.get("provisional", False),
     )
 
@@ -1142,9 +1151,63 @@ def manage_unknown(
 # --- SDK-facing handlers and ToolSpecs --------------------------------------
 
 
+_LIST_FIELDS = frozenset(
+    {
+        "covers_areas", "derived_from_answers", "depends_on_assumptions", "depends_on_decisions",
+        "affects_requirements", "affects_areas", "options", "prerequisites", "related_requirements",
+        "related_research", "target_areas", "suggested_options",
+    }
+)
+"""Every `list[str]` field any `manage_*` writer accepts on `create` (see
+`ppa/ledger/models.py`) — used to coerce the MCP boundary's raw string form
+back into a real list. See bug #10, `blockers.md`."""
+
+_BOOL_FIELDS = frozenset({"needs_user_confirmation", "user_confirmation_required", "provisional", "blocking"})
+"""Every `bool` field any `manage_*` writer accepts — same coercion need as
+`_LIST_FIELDS`, for the same reason."""
+
+
+def _coerce_mcp_value(key: str, value: Any) -> Any:
+    """Bug #10 (`blockers.md`): `ppa/tools/server.py::_sdk_input_schema`
+    declares every field `str` to the SDK (decision #22) — real per-field
+    typing is deferred to validation layer 2, which is not actually wired
+    into this call path (decision #26). Left uncoerced, a writer function
+    received `covers_areas` as the literal string the model sent (a JSON
+    array, a comma-separated list, or a bare word — the model tried all
+    three) and `list("problem")` in `_requirement_create` split it into
+    individual characters, rejecting every real call with
+    `MISSING_COVERS_AREAS` regardless of what was actually sent. Verified
+    live: a real intake turn hit this for every one of its 7 drafted
+    requirements before diagnosing it itself and refusing to fabricate a
+    persisted result.
+
+    Only coerces when `value` actually arrived as a string — a caller that
+    already passes a real `list`/`bool` (every existing Python-level test
+    in this codebase, calling the writer functions directly) is untouched.
+    """
+
+    if key in _LIST_FIELDS and isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+        try:
+            parsed = json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        else:
+            if isinstance(parsed, list):
+                return parsed
+        return [item.strip() for item in stripped.split(",") if item.strip()]
+
+    if key in _BOOL_FIELDS and isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+
+    return value
+
+
 def _writer_kwargs_from_args(args: dict[str, Any], extra: tuple[str, ...] = ()) -> dict[str, Any]:
     excluded = {"operation", "project_slug", "projects_root", "actor_id", "session_id", "workflow_state", "agent_id", "actor_role", "idem_key", *extra}
-    return {k: v for k, v in args.items() if k not in excluded}
+    return {k: _coerce_mcp_value(k, v) for k, v in args.items() if k not in excluded}
 
 
 async def _manage_writer_handler(writer: Callable[..., ToolResult], tool_name: str, args: dict[str, Any]) -> dict[str, Any]:

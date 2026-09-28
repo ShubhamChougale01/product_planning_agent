@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 
 import pytest
@@ -18,6 +19,8 @@ from ppa.tools.discovery_tools import (
     MANAGE_DECISION_SPEC,
     MANAGE_REQUIREMENT_SPEC,
     MANAGE_UNKNOWN_SPEC,
+    _manage_assumption_handler,
+    _manage_requirement_handler,
     manage_assumption,
     manage_decision,
     manage_requirement,
@@ -543,3 +546,126 @@ def test_writer_toolspec_is_registered_and_complete(tool_name, spec):
     assert len(registered.spec.use_when) >= 2
     assert len(registered.spec.do_not_use_when) >= 2
     assert "discovery" in registered.owner_agents
+
+
+# ---------------------------------------------------------------------------
+# Bug #10 (blockers.md): the MCP boundary declares every field `str` to the
+# SDK, so a real model call sends list/bool fields as strings. The SDK-facing
+# handler must coerce them back before the writer function ever sees them —
+# these tests call the async handler directly (the actual call path a real
+# turn uses), not the writer function, since the writer's own contract
+# (a real `list`/`bool` in) is correct and already covered above.
+# ---------------------------------------------------------------------------
+
+
+def test_handler_coerces_covers_areas_from_a_json_array_string(tmp_path):
+    project = _make_project(tmp_path)
+    _record_answer(project)
+    response = asyncio.run(
+        _manage_requirement_handler(
+            {
+                "operation": "create",
+                "project_slug": project.slug,
+                "projects_root": str(tmp_path / "projects"),
+                "statement": "Users can export invoices as PDF",
+                "type": "functional",
+                "priority": "must",
+                "confidence": "HIGH",
+                "confidence_basis": "user said it directly",
+                "covers_areas": '["problem"]',
+                "derived_from_answers": '["ANS-001"]',
+                "depends_on_assumptions": "[]",
+                "depends_on_decisions": "[]",
+            }
+        )
+    )
+    assert response["is_error"] is False, response
+
+
+def test_handler_coerces_covers_areas_from_a_comma_separated_string(tmp_path):
+    project = _make_project(tmp_path)
+    _record_answer(project)
+    response = asyncio.run(
+        _manage_requirement_handler(
+            {
+                "operation": "create",
+                "project_slug": project.slug,
+                "projects_root": str(tmp_path / "projects"),
+                "statement": "Users can export invoices as PDF",
+                "type": "functional",
+                "priority": "must",
+                "confidence": "HIGH",
+                "confidence_basis": "user said it directly",
+                "covers_areas": "problem, users",
+                "derived_from_answers": "ANS-001",
+                "depends_on_assumptions": "",
+                "depends_on_decisions": "",
+            }
+        )
+    )
+    assert response["is_error"] is False, response
+    entities = current_entities(project.events_path)
+    created = next(e for e in entities.values() if getattr(e, "statement", None) == "Users can export invoices as PDF")
+    assert created.covers_areas == ["problem", "users"]
+
+
+def test_handler_without_coercion_would_have_split_a_bare_string_into_characters(tmp_path):
+    """Documents the exact failure this bug produced, verified live: a bare
+    (non-list, non-comma) single area name still round-trips as one-item
+    list, not `list("problem")`'s five stray one-character "areas.\""""
+
+    project = _make_project(tmp_path)
+    _record_answer(project)
+    response = asyncio.run(
+        _manage_requirement_handler(
+            {
+                "operation": "create",
+                "project_slug": project.slug,
+                "projects_root": str(tmp_path / "projects"),
+                "statement": "Users can export invoices as PDF",
+                "type": "functional",
+                "priority": "must",
+                "confidence": "HIGH",
+                "confidence_basis": "user said it directly",
+                "covers_areas": "problem",
+                "derived_from_answers": "ANS-001",
+                "depends_on_assumptions": "",
+                "depends_on_decisions": "",
+            }
+        )
+    )
+    assert response["is_error"] is False, response
+    entities = current_entities(project.events_path)
+    created = next(e for e in entities.values() if getattr(e, "statement", None) == "Users can export invoices as PDF")
+    assert created.covers_areas == ["problem"]
+
+
+def test_assumption_create_always_sets_user_confirmation_required_true(tmp_path):
+    """Bug #11 (`blockers.md`): DESIGN.md's own "no silent assumptions,
+    ever" rule is unconditional — `user_confirmation_required` is always
+    `True` on create, never caller-supplied, the same "computed by the
+    tool, never silently wrong" pattern decision #24 already applied to
+    `expected_decision_date`. A caller passing `False` (or nothing at all,
+    which real model calls did — the tool's own spec never told them this
+    field existed) must not be able to create an unflagged assumption."""
+
+    project = _make_project(tmp_path)
+    response = asyncio.run(
+        _manage_assumption_handler(
+            {
+                "operation": "create",
+                "project_slug": project.slug,
+                "projects_root": str(tmp_path / "projects"),
+                "statement": "Web-only, single-tenant for v1",
+                "reason": "not stated, assumed simplest shape",
+                "impact": "MEDIUM",
+                "confidence": "LOW",
+                "confidence_basis": "inferred",
+                "user_confirmation_required": "false",
+            }
+        )
+    )
+    assert response["is_error"] is False, response
+    entities = current_entities(project.events_path)
+    created = next(e for e in entities.values() if getattr(e, "statement", None) == "Web-only, single-tenant for v1")
+    assert created.user_confirmation_required is True

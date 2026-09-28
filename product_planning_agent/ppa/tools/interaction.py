@@ -44,6 +44,8 @@ whatever classification the caller already has, if any.
 
 from __future__ import annotations
 
+import json
+
 from datetime import datetime, timezone
 from typing import Any
 
@@ -288,9 +290,24 @@ def ask_user(
     return ToolResult(success=True, result_count=len(entries), data=entries)
 
 
+def _coerce_questions(value: Any) -> list[dict[str, Any]]:
+    """Bug #10 (`blockers.md`): the MCP boundary declares every field `str`
+    to the SDK (decision #22), so a real model call sends `questions` as a
+    JSON-encoded string, not a real `list[dict]` — parse it back rather
+    than let `ask_user`'s own batch validation see a bare string."""
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+        parsed = json.loads(stripped)
+        return parsed if isinstance(parsed, list) else [parsed]
+    return value or []
+
+
 async def _ask_user_handler(args: dict[str, Any]) -> dict[str, Any]:
     project_slug = args.get("project_slug")
-    questions = args.get("questions") or []
+    questions = _coerce_questions(args.get("questions"))
     if not project_slug:
         result = _error(ErrorCategory.VALIDATION, "MISSING_PROJECT_SLUG", "ask_user: requires project_slug")
     else:

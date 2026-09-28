@@ -14,7 +14,11 @@ question:
 4. Do not touch coverage yourself. It moves as a *consequence* of the requirements and assumptions
    you just wrote — the engine recomputes it from what now exists in the ledger. There is no tool
    that lets you declare a coverage state, and there should not be a way for you to try.
-5. Ask **exactly one** thing, and only one: *"Where am I wrong?"* (or a natural equivalent).
+5. Ask **exactly one** thing, and only one: *"Where am I wrong?"* (or a natural equivalent) — **by
+   calling `ask_user`**, not by only writing the question in your own reply text. A question that
+   exists only as prose is not tracked, has no id, and cannot be answered — it is exactly the kind
+   of silent, unrecorded step this build exists to prevent. Call `ask_user` with that one question,
+   then say it to the person in your own words too.
 
 Intake is not the place to interrogate. Someone who has just watched the agent demonstrate real
 understanding of their idea will correct it freely and in detail — that is worth more than any

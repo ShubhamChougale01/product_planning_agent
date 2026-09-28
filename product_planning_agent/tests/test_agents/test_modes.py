@@ -257,6 +257,43 @@ def test_run_discovery_turn_advances_intake_to_clarify_after_one_clean_turn(tmp_
     assert read_project_meta(project.events_path)["discovery_mode"] == "CLARIFY"
 
 
+def test_run_discovery_turn_advances_intake_to_clarify_even_with_its_one_pending_question(tmp_path, monkeypatch):
+    """Bug #12 (`blockers.md`): a *successful* intake turn always ends with
+    exactly one pending question (DESIGN.md S7.4 step 5) — advancement must
+    not be conditioned on there being none, or every real, correctly-shaped
+    intake turn would stay stuck in INTAKE forever."""
+
+    import ppa.agents.turn as turn_module
+
+    project = _bare_project(tmp_path, mode=DiscoveryMode.INTAKE)
+
+    async def _fake_sdk_turn_that_asks_a_question(**kwargs):
+        # Simulates the model calling ask_user mid-turn: a real turn would
+        # write this event via the actual tool handler; the fake SDK call
+        # here writes it directly to isolate mode-advancement from the SDK.
+        question = QuestionAnswer(
+            id="Q-001", created_at=NOW, updated_at=NOW, created_by="agent:discovery", updated_by="agent:discovery",
+            text="where am I wrong?", why_asked="confirm the initial understanding", round=1,
+        )
+        append_event(
+            dict(
+                ts=NOW, type=EventType.QUESTION_ASKED, entity_id="Q-001", actor_id="agent:discovery",
+                actor_role="agent", agent_name="discovery", workflow_state="DISCOVERY", txn_id=None,
+                source="fixture", reason="asked the one intake question", before=None,
+                after=question.model_dump(mode="json"), session_id="sess-1",
+            ),
+            project.events_path,
+        )
+        return "Here's my understanding. Where am I wrong?", 0.0
+
+    monkeypatch.setattr(turn_module, "_run_one_sdk_turn", _fake_sdk_turn_that_asks_a_question)
+
+    result = turn_module.run_discovery_turn(_ctx(project), today=TODAY)
+
+    assert result.status is AgentResultStatus.HUMAN_INPUT_REQUIRED
+    assert read_project_meta(project.events_path)["discovery_mode"] == "CLARIFY"
+
+
 def test_run_discovery_turn_status_is_never_read_from_the_models_own_text(tmp_path, monkeypatch):
     """Even if the model's own prose claims completion, classification is
     decided by ledger state (a pending question or not) — never by parsing
