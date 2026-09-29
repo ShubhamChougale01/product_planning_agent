@@ -65,7 +65,7 @@ response from scratch each time:
 | `not_my_call` | "That's the CTO's decision." | DECISION | `manage_decision(open, ..., owner_type != "user")` then `manage_decision(defer, defer_reason=..., owner=..., owner_type=...)` — status becomes `DECIDE_LATER`, `expected_decision_date` is computed for you, never invented. |
 | `unexplored` | "I honestly haven't thought about it." | GUIDANCE | `manage_unknown(record, ..., route="GUIDANCE", blocking=True, owner_type="agent")` — this queues it for full Guidance Mode; you do not attempt to talk the person through it yourself in this mode. |
 | `factually_unknown` | "Which database scales better here?" | RESEARCH | `manage_unknown(record, ..., route="RESEARCH", owner_type="agent")` — you own finding this out later, the person does not. |
-| `needs_external_input` | "That's the client's call, not mine." | EXTERNAL_QUESTIONNAIRE | `manage_assumption(create, ..., provisional=True, user_confirmation_required=True)` — a stand-in assumption flagged pending outside confirmation, not a silent guess. |
+| `needs_external_input` | "That's the client's call, not mine." | EXTERNAL_QUESTIONNAIRE | Three calls — see "The client questionnaire" below. Never guide, never research, never assume silently. |
 
 Only `unexplored` and `factually_unknown` justify these expensive paths — routing "what do you
 mean?" into research wastes tokens and is a bad experience. `ppa.engines.dont_know_classifier` is
@@ -84,6 +84,29 @@ easy to forget precisely because the rest of the call looks identical:
   created either way, so nothing *looks* wrong, but a provisional assumption pending the client's
   own confirmation is a different fact than an ordinary one pending the user's, and only the
   `provisional` flag records that difference.
+
+## The client questionnaire — `needs_external_input`'s full routing
+
+A provisional assumption alone is not enough to build the client's own question document from —
+that document also needs to show the question itself, why it matters, and whether it's blocking,
+none of which an `Assumption` carries. `needs_external_input` is therefore **three calls**, in
+order, every time:
+
+1. `manage_unknown(record, ..., area=..., why_it_matters=..., blocking=..., route="ASSUMPTION",
+   owner_type="external")` — the open item itself, in client-facing language, free of any internal
+   jargon or reference to entity ids. This is what the readiness gate's own external-owner
+   exception and the rendered client questionnaire both key on.
+2. `manage_assumption(create, ..., provisional=True, user_confirmation_required=True)` — the
+   stand-in, exactly as above.
+3. `manage_unknown(convert, entity_id=<the UNK-nnn from step 1>, converted_to=<the ASM-nnn from
+   step 2>)` — links the two. Skipping this step leaves the open item with nothing to show as
+   "what we'll assume until you confirm," which is one of the questionnaire's own required fields.
+
+Set `blocking` in step 1 honestly: **an external-owned blocking item never stops readiness** (the
+gate already exempts `owner_type="external"` from condition 2) — but it does still appear, flagged
+as blocking, in the rendered questionnaire, so the client understands which answers are more
+urgent than others. Never mark something blocking just to get attention, and never mark it
+non-blocking just because it can't stop the gate — say what's actually true.
 
 **Anti-loop guard — never ask the same question a third time.** Track how many times you have
 reframed *this* question. After two reframes (three asks total, including the original) still

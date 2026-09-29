@@ -84,6 +84,20 @@ def report(project: str) -> None:
     _not_yet("report", "T31 (CLI and status board)")
 
 
+@app.command(name="client-questions")
+def client_questions(project: str) -> None:
+    """Render every open item owned externally as a sendable client questionnaire."""
+    from ppa.config.house_style import load_house_style
+    from ppa.ledger.materialize import current_entities
+    from ppa.ledger.project import open_project
+    from ppa.render.client_questions import render_client_questionnaire
+
+    proj = open_project(project)
+    entities = current_entities(proj.events_path)
+    style = load_house_style()
+    console.print(render_client_questionnaire(entities, style))
+
+
 def _not_yet(command: str, task: str) -> None:
     console.print(f"[yellow]`ppa {command}` is not built yet.[/yellow] It arrives with {task}.")
     raise typer.Exit(code=1)
