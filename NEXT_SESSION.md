@@ -2,71 +2,70 @@
 
 **Branch:** `blockers-add-fixed-by-column`, tracking `origin/blockers-add-fixed-by-column`. Still
 the one live line of development — it absorbed T07–T15, the blockers.md "Fixed by" column, T16–T20,
-and now T21–T25.
+T21–T25, and now T26–T30. Phase D (Discovery Agent — the intelligence layer) is fully complete.
 
-**Baseline:** full suite — 770/770 passing, 1 skipped, default `pytest` run. Separately,
-`pytest -m live_model` — 3 passing (T23's real-turn proof, T24's intake eval, T25's clarify eval).
-Both were reconfirmed clean at the end of this session.
+**Baseline:** full suite — 829/829 passing, 1 skipped, default `pytest` run. Separately,
+`pytest -m live_model` — 9 passing (T23's real-turn proof, T24's intake eval, T25's clarify eval,
+T26's dont-know eval, T27's external-input eval, T28's guidance eval, T29's research eval, T30's
+review eval, T30's change eval). All reconfirmed clean at the end of this session — one flaky
+pre-existing test (`test_clarify.py`/`test_research.py`, model non-determinism, not code) recurred
+across multiple runs this session; always passed clean on an isolated retry. See "A note on live
+flakiness" below.
 
-**Current task:** T21 through T25 are done and committed. Next up: T26 —
-`tasks/t26_dont_know_routing.md`. Not yet opened or started this session. Read that file first; it
-has its own Done-when checklist to work through.
+**Current task:** T26 through T30 are done and committed. Next up: T31 —
+`tasks/t31_cli_and_status_board.md` (Phase E · Product surface). Not yet opened or started this
+session. Read that file first; it has its own Done-when checklist to work through.
 
-**Unresolved blockers:** none. `blockers.md` §1 (Blockers) and §3 (Bugs) are both empty — every bug
-found this session (#6–#12, seven of them, all found live while building T24) is resolved and moved
-to §4.
+**Unresolved blockers:** none. `blockers.md` §1 (Blockers) and §3 (Bugs) are both empty.
 
 **Decisions pending confirmation (not blockers — safe to keep building on):**
-- **#19** — `check_readiness`'s three not-yet-buildable inputs, unchanged since T10; still resolves
-  at T30.
-- **#33** (new this session) — three of T25's own Done-when boxes describe session-level or
-  multi-round CLARIFY behavior (research routing "at least one per session," the round-4
-  assumptions offer, the three-`dont_know` fatigue switch) that a single live round can't exercise
-  end to end. All three are built and unit-tested at the deterministic-engine layer
-  (`ppa.engines.question_engine`) and instructed in `mode_clarify.md`'s own prompt — **resolves at
-  T33/T34**, which are exactly the tasks built to run scripted, multi-round sessions against
-  personas. Nothing here blocks continuing to T26.
+- **#33** (T25) — three Done-when boxes describing session-level/multi-round CLARIFY behavior,
+  proven at the engine layer only — **resolves at T33/T34**.
+- **#34** (T26) — the `always_idk` persona's own multi-round proof, same shape as #33 — **resolves
+  at T33/T34**.
+- **#4** — which model tier for eval runs — **resolves at T34**.
 
-**What T21–T25 actually built** (read each task's own Build record in `completed_tasks/` for full
+Decision #19 (T10's three not-yet-buildable readiness-gate inputs) is now **resolved** — T30 wired
+all three to real event-sourced state, exactly as T10's own row predicted.
+
+**What T26–T30 actually built** (read each task's own Build record in `completed_tasks/` for full
 reasoning — this is just the map):
-- **T21** — `ppa/orchestrator/{loop,preconditions,dispatch,context}.py`. The outer loop (DESIGN.md
-  §2.11), driven by workflow state and the readiness gate, never by model output. All seven
-  `AgentResultStatus` outcomes handled explicitly. Proven almost entirely without a model in the
-  loop; the one real SDK-turn proof lives in `scripts/verify_first_turn.py` (decision #28 — the
-  zero-cost-suite principle this whole session leaned on repeatedly).
-- **T22** — `tests/test_permissions/test_guardrails.py` + `tests/test_agents/test_prohibitions.py`.
-  Every DESIGN.md §2.13/§2.19/§2.4 guardrail traced to a passing test, reusing already-shipped
-  mechanisms rather than duplicating them.
-- **T23** — Discovery's first real system prompt and turn behavior
-  (`ppa/agents/{discovery,turn}.py`, `ppa/agents/prompts/*.md`, `ppa/config/autonomy.py`). Mode-
-  scoped tool subsets enforced at the harness level. **Found bug #5**: `allowed_tool_names` needs
-  the fully-qualified `mcp__<server>__<tool>` form, not a bare name.
-- **T24** — Intake mode (`ppa/agents/modes/intake.py`). This is the task where a real Discovery
-  turn first tried to actually persist something, which surfaced **bugs #6–#12** — in order: the
-  built-in Claude Code toolset was never disabled (`tools=[]` missing, the single most severe
-  finding this session); in-process MCP tools come back deferred and need one literal `ToolSearch`
-  call per tool to resolve reliably; `ppa/tools/registry.py` never imported the real tool modules,
-  so the tool registry was empty in every real process; tool handlers had no way to know the live
-  turn's real `project_slug`/`projects_root`; the MCP boundary's string-only schema needs explicit
-  list/bool coercion before reaching a writer function; `manage_assumption(create)` silently
-  defaulted `user_confirmation_required` to `False`; and Intake's own mode-advancement condition
-  was backwards. With all seven fixed, a real turn against DESIGN.md's own "vendor invoice tracker"
-  example produces a fully real, fully persisted round end to end.
-- **T25** — Clarify mode and the question engine (`ppa/engines/question_engine.py`,
-  `ppa/agents/modes/clarify.py`). The deterministic quarter of the five-step pipeline (find gaps,
-  score, cap, fatigue, soft cap) as real code; the model still owns candidate generation and the
-  qualitative filter, guided by `mode_clarify.md`. The filter didn't fire on the first live
-  attempt (0 assumptions recorded) — strengthened the prompt to require walking the whole gap list
-  explicitly; the next live run passed cleanly.
+- **T26** — `ppa/engines/dont_know_classifier.py` (the seven kinds, the routing table as code, the
+  anti-loop guard's arithmetic) + `ppa/agents/modes/dont_know.py` (shape contract). No new MCP
+  tool — every route reachable with `ask_user`/`manage_assumption`/`manage_decision`/
+  `manage_unknown`. **Bug #13**: `manage_assumption`'s `ToolSpec` never exposed `provisional` to
+  the model.
+- **T27** — `ppa/agents/modes/external.py` + `ppa/render/client_questions.py` (`ppa client-
+  questions`, a real CLI command). **Decision #35**: `needs_external_input` became a three-call
+  sequence (`manage_unknown(record, owner_type=external)` + `manage_assumption(create,
+  provisional=True)` + `manage_unknown(convert)`) so the questionnaire has question/why/blocking/
+  area, not just a bare assumption.
+- **T28** — `ppa/agents/subagents/guidance.py` (real `GuidanceBrief`, its own isolated SDK turn,
+  own grant) + `ppa/render/guidance_card.py` (`ppa why <dec-id>`, a real CLI command). **Decision
+  #36**: `manage_research` (create/link_decision/supersede) built from scratch — nothing before
+  this task ever wrote a real `RES-nnn`.
+- **T29** — `ppa/providers/research.py` (the three-state degradation seam) + `ppa/agents/
+  subagents/research.py` (`run_research_session` batches the whole `RESEARCH_REQUIRED` queue in
+  one turn). **Decision #37**: `available()` gates before any model call; the FAILED message is
+  built directly, never through `provider.research()` (deliberately unimplemented on the real
+  provider).
+- **T30** — `ppa/agents/modes/review.py` (REVIEW's grant widened for `manage_assumption`;
+  `grant_review_approval` is a plain function, never a tool, mirroring T18's own approval rule) +
+  `ppa/agents/modes/change.py` (`run_change_session`: detect via T11's `find_conflict_candidates`,
+  adjudicate via the new `manage_conflict` tool, supersede+create, `analyze_impact`, rewind
+  `CHANGE_REQUESTED -> DISCOVERY`). **Decision #38**: five related judgment calls, including
+  "change handling is not a `DiscoveryMode`" (it's the *global* workflow state, a different level)
+  — it runs against `agent_id="discovery"`'s full grant directly, same shape T28/T29's subagents
+  use for a different reason.
 
-**A note on live-model testing, for whoever picks this up next:** this session added a
-`live_model` pytest marker (decision #31) — any test that makes a real call through
-`ModelProvider` must carry `@pytest.mark.live_model`, and `pyproject.toml`'s `addopts` excludes it
-from the default `pytest` run. Run those explicitly with `pytest -m live_model`. T26 onward is
-also "Needs a model: Yes" — expect to use this marker again, and expect to find more of this exact
-shape of bug (something that only breaks when a *real* model, through the *real* SDK, tries to
-actually call a tool) — `pytest`'s own green baseline does not cover that path, deliberately, to
-keep the default suite free.
+**A note on live flakiness, for whoever picks this up next:** the exact same non-determinism keeps
+recurring on `pytest -m live_model`'s *combined* run (never on an isolated re-run of just the
+failing test) — `test_clarify.py::test_clarify_round_on_a_post_intake_ledger_meets_the_per_round_
+shape` (T25) failed on the T27, T28 and T30 sessions' first combined runs; `test_research.py::
+test_a_real_research_session_batches_the_queue_and_persists_findings` (T29) failed once on T30's
+combined run. Every single time, an isolated re-run of just that one test passed clean. Treat a
+lone failure in the *combined* `live_model` run as suspect-flaky first — re-run that one test alone
+before concluding a real regression; only escalate if the isolated retry also fails.
 
 **How to resume:**
 1. Confirm you're on `blockers-add-fixed-by-column` (`git status`) and it's up to date with
@@ -74,8 +73,10 @@ keep the default suite free.
 2. Set up (or activate) `.venv/` if this is a fresh worktree — `.venv/` is gitignored, so a new
    worktree needs `python -m venv .venv && .venv/Scripts/python.exe -m pip install -e ".[dev]"`
    before anything will run (from inside `product_planning_agent/`).
-3. Run the full suite to reconfirm the 770-passing baseline before touching anything. Optionally
-   also run `pytest -m live_model` to reconfirm the 3 real-model tests still pass.
-4. Open `tasks/t26_dont_know_routing.md` and start there.
-5. Delete this file (or update it) once T26 is committed — it's a handoff note for the next
+3. Run the full suite to reconfirm the 829-passing baseline before touching anything. Optionally
+   also run `pytest -m live_model` to reconfirm the 9 real-model tests still pass (watch for the
+   flakiness note above — a lone failure there is not automatically a regression).
+4. Open `tasks/t31_cli_and_status_board.md` and start there. It has no listed model requirement
+   ("Needs a model? No") — the first task since T20 that doesn't.
+5. Delete this file (or update it) once T31 is committed — it's a handoff note for the next
    session, not a permanent record like `blockers.md`.
