@@ -96,6 +96,18 @@ class EventType(str, Enum):
     APPROVAL_GRANTED = "approval.granted"
     APPROVAL_REVOKED = "approval.revoked"
 
+    REVIEW_APPROVED = "review.approved"
+    """T30: REVIEW mode's own explicit user-approval event — readiness gate
+    condition 7's `review_approved` (decision #19) folds from this. Not
+    tied to any single entity (`entity_id=None`); `after` carries which
+    areas the user confirmed as part of approving."""
+
+    CONFLICT_ADJUDICATED = "conflict.adjudicated"
+    """T30: the model's own verdict on one `ppa.engines.conflicts.Candidate`
+    (contradiction/refinement/unrelated) — readiness gate condition 6's
+    `unresolved_conflicts` (decision #19) folds from every adjudication
+    still verdict="contradiction" and not yet resolved by a supersede."""
+
     TXN_BEGIN = "txn.begin"
     TXN_COMMIT = "txn.commit"
     TXN_ABORT = "txn.abort"

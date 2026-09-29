@@ -84,11 +84,19 @@ _DISCOVERY_GRANT_SUBSET: dict[DiscoveryMode, frozenset[str]] = {
     # tool yet, so both stay read-only-plus-handoff until then.
     DiscoveryMode.GUIDANCE: frozenset({"read_planning_state", "request_guidance"}),
     DiscoveryMode.RESEARCH: frozenset({"read_planning_state", "request_guidance"}),
-    # REVIEW/READY: nothing left to draft or ask. Read-only by design, not
-    # by omission — this is what makes "the agent cannot call ask_user in
-    # REVIEW" and "cannot call manage_requirement(create) in READY" true
-    # without needing a special case anywhere else.
-    DiscoveryMode.REVIEW: frozenset({"read_planning_state"}),
+    # REVIEW: nothing left to *draft* or *ask* — `ask_user` stays out, on
+    # purpose (mode_review.md's own instruction: no question tool here,
+    # by design). But T30's own job is walking HIGH-impact unconfirmed
+    # assumptions one at a time (confirm/reject/modify), which needs
+    # `manage_assumption` — the one write REVIEW genuinely does. Approval
+    # itself is explicitly *not* a tool call (see `ppa.agents.modes.
+    # review.grant_review_approval`'s own docstring for why — the same
+    # "no agent is ever granted a tool to approve its own request" rule
+    # `ppa/tools/approval.py` already established for T18).
+    DiscoveryMode.REVIEW: frozenset({"read_planning_state", "manage_assumption"}),
+    # READY: nothing left to draft, ask, or confirm. Read-only by design,
+    # not by omission — this is what makes "cannot call manage_requirement
+    # (create) in READY" true without needing a special case anywhere else.
     DiscoveryMode.READY: frozenset({"read_planning_state"}),
 }
 

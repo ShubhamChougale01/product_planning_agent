@@ -1259,6 +1259,94 @@ def manage_research(
     )
 
 
+# --- manage_conflict ---------------------------------------------------------
+#
+# Not in T20's own scope either — DESIGN.md §2.5's own table names
+# `CHANGE_REQUESTED` as reachable from every state and `ppa/workflow/
+# transitions.yaml`'s own comment says "which earlier state [to rewind to]
+# is impact analysis's call (T30)", but nothing before T30 ever needed to
+# record the model's own verdict on a `ppa.engines.conflicts.Candidate`
+# (contradiction/refinement/unrelated). A system/meta event, no `entity_id`
+# — the same shape `ppa/tools/approval.py`'s `approval.granted`/`revoked`
+# already use for "a fact about the session, not a ledger entity."
+# Readiness gate condition 6's `unresolved_conflicts` (decision #19) folds
+# from every adjudication still `verdict="contradiction"` and `resolved=
+# False` (`ppa.agents.modes.change.unresolved_conflicts_from_events`).
+
+_CONFLICT_ADJUDICATE_REQUIRED = ("subject_id", "candidate_id", "verdict", "resolved")
+_CONFLICT_VERDICTS = frozenset({"contradiction", "refinement", "unrelated"})
+
+
+def _conflict_adjudicate(
+    project: Project, *, actor_id: str, session_id: str, workflow_state: str, agent_id: str,
+    actor_role: str, now: datetime, idem_key: str | None, args: dict[str, Any], kwargs: dict[str, Any],
+) -> ToolResult:
+    tool = "manage_conflict"
+    missing = _missing_fields(kwargs, _CONFLICT_ADJUDICATE_REQUIRED)
+    if missing:
+        result = _error(
+            ErrorCategory.VALIDATION, "MISSING_REQUIRED_FIELD",
+            f"{tool}(adjudicate) requires {', '.join(_CONFLICT_ADJUDICATE_REQUIRED)}. Missing: {', '.join(missing)}.",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="missing required field(s)", result=result)
+
+    verdict = kwargs["verdict"]
+    if verdict not in _CONFLICT_VERDICTS:
+        result = _error(
+            ErrorCategory.VALIDATION, "INVALID_VERDICT",
+            f"{tool}(adjudicate): verdict must be one of {sorted(_CONFLICT_VERDICTS)}, got {verdict!r}",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="invalid verdict", result=result)
+
+    explanation, _findings = scan_and_redact(kwargs.get("explanation") or "")
+
+    after = dict(
+        subject_id=kwargs["subject_id"], candidate_id=kwargs["candidate_id"], verdict=verdict,
+        resolved=bool(kwargs["resolved"]), explanation=explanation,
+    )
+    fields = dict(
+        ts=now, type=EventType.CONFLICT_ADJUDICATED, entity_id=None, actor_id=actor_id, actor_role=actor_role,
+        agent_name=None if actor_role == "user" else agent_id, workflow_state=workflow_state, txn_id=None,
+        source=tool, reason=kwargs.get("change_reason", f"conflict adjudicated: {verdict}"), before=None, after=after, session_id=session_id,
+    )
+    return _commit_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, fields=fields, args=args, reason="conflict adjudicated", id_prefix=None, idem_key=idem_key)
+
+
+def manage_conflict(
+    operation: str,
+    project: Project,
+    *,
+    actor_id: str,
+    session_id: str,
+    workflow_state: str = "DISCOVERY",
+    agent_id: str = "discovery",
+    actor_role: str = "agent",
+    now: datetime | None = None,
+    idem_key: str | None = None,
+    **kwargs: Any,
+) -> ToolResult:
+    """`adjudicate` — the only operation. Records the model's own verdict on
+    one conflict candidate; never mutates the entities the candidate names
+    itself (`manage_requirement`/`manage_assumption`/`manage_decision`'s own
+    `supersede` operations do that, called separately when `resolved=True`)."""
+
+    tool = "manage_conflict"
+    ts = _now(now)
+    args = {"operation": operation, **kwargs}
+
+    if operation == "adjudicate":
+        return _conflict_adjudicate(
+            project, actor_id=actor_id, session_id=session_id, workflow_state=workflow_state,
+            agent_id=agent_id, actor_role=actor_role, now=ts, idem_key=idem_key, args=args, kwargs=kwargs,
+        )
+
+    result = _error(
+        ErrorCategory.VALIDATION, "UNKNOWN_OPERATION",
+        f"{tool}: unknown operation {operation!r} — must be adjudicate",
+    )
+    return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason=f"unknown operation {operation!r}", result=result)
+
+
 # --- SDK-facing handlers and ToolSpecs --------------------------------------
 
 
@@ -1361,6 +1449,10 @@ async def _manage_unknown_handler(args: dict[str, Any]) -> dict[str, Any]:
 
 async def _manage_research_handler(args: dict[str, Any]) -> dict[str, Any]:
     return await _manage_writer_handler(manage_research, "manage_research", args)
+
+
+async def _manage_conflict_handler(args: dict[str, Any]) -> dict[str, Any]:
+    return await _manage_writer_handler(manage_conflict, "manage_conflict", args)
 
 
 MANAGE_REQUIREMENT_SPEC = ToolSpec(
@@ -1619,8 +1711,54 @@ MANAGE_RESEARCH_SPEC = ToolSpec(
     },
 )
 
+MANAGE_CONFLICT_SPEC = ToolSpec(
+    name="manage_conflict",
+    purpose="Record the model's own verdict on a conflict candidate — the only tool that writes conflict.adjudicated events.",
+    inputs={
+        "operation": "str, adjudicate is the only one",
+        "project_slug": "str, the project's slug",
+        "subject_id": "str, the existing entity id the candidate compared against (e.g. a CONFIRMED REQ-nnn)",
+        "candidate_id": "str, the id of the new/changed entity that triggered the comparison (e.g. an ANS-nnn or a new REQ-nnn)",
+        "verdict": "str, one of contradiction|refinement|unrelated",
+        "resolved": "bool, true once subject_id has actually been superseded as a result of this verdict, false if only surfaced so far",
+        "explanation": "str, why — shown to the user when surfacing the conflict",
+        "change_reason": "str, why this write happened",
+    },
+    required=["operation", "project_slug", "subject_id", "candidate_id", "verdict", "resolved"],
+    optional=["explanation", "change_reason"],
+    formats={
+        "operation": "one of: adjudicate",
+        "verdict": "one of: contradiction, refinement, unrelated",
+    },
+    returns="ToolResult with data={entity_id: None, event_id, replayed} on success.",
+    examples=[
+        'manage_conflict(operation="adjudicate", project_slug="invoice-tracker", subject_id="REQ-002", candidate_id="ANS-014", verdict="contradiction", resolved=False, explanation="REQ-002 says internal tool, ~20 users; the new answer describes a public launch")',
+        'manage_conflict(operation="adjudicate", project_slug="invoice-tracker", subject_id="REQ-002", candidate_id="ANS-014", verdict="contradiction", resolved=True, explanation="superseded REQ-002 with REQ-009 after the user confirmed the public launch")',
+    ],
+    edge_cases=[
+        "an invalid verdict is rejected as VALIDATION, naming the three legal values",
+        "adjudicate never mutates subject_id itself — pair a resolved=True call with a separate manage_requirement/manage_assumption/manage_decision(supersede) call",
+    ],
+    limitations=[
+        "does not itself supersede anything — this tool only records the verdict",
+    ],
+    use_when=[
+        "ppa.engines.conflicts.find_conflict_candidates found a real candidate worth a verdict",
+        "a previously-surfaced (resolved=False) contradiction has now actually been superseded — record a second adjudicate call with resolved=True",
+    ],
+    do_not_use_when=[
+        "no candidate was found at all — nothing to adjudicate",
+        "the agent only wants to read prior adjudications — use read_planning_state's history scope instead",
+    ],
+    related_tools={
+        "manage_requirement": "supersede is the actual resolution once verdict=contradiction, resolved=True",
+        "read_planning_state": "reads conflict.adjudicated events via scope=history; manage_conflict never reads, only writes",
+    },
+)
+
 register(MANAGE_REQUIREMENT_SPEC, _manage_requirement_handler, owner_agents=["discovery"])
 register(MANAGE_ASSUMPTION_SPEC, _manage_assumption_handler, owner_agents=["discovery"])
 register(MANAGE_DECISION_SPEC, _manage_decision_handler, owner_agents=["discovery"])
 register(MANAGE_UNKNOWN_SPEC, _manage_unknown_handler, owner_agents=["discovery"])
 register(MANAGE_RESEARCH_SPEC, _manage_research_handler, owner_agents=["guidance", "research"])
+register(MANAGE_CONFLICT_SPEC, _manage_conflict_handler, owner_agents=["discovery"])
