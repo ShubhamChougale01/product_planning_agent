@@ -38,7 +38,7 @@ from ppa.ledger.audit import AuditResult, record_audit
 from ppa.ledger.digest import generate_digest
 from ppa.ledger.events import EventType
 from ppa.ledger.materialize import current_entities, entity_type_for, rebuild_all
-from ppa.ledger.models import Assumption, BaseEntity, Decision, EntityType, HistoryEntry, Requirement, Unknown
+from ppa.ledger.models import Assumption, BaseEntity, Decision, EntityType, HistoryEntry, Requirement, ResearchFinding, Unknown
 from ppa.ledger.project import DEFAULT_PROJECTS_ROOT, Project, open_project
 from ppa.ledger.secrets import scan_and_redact
 from ppa.ledger.store import append_event_with_id, ledger_version
@@ -1148,6 +1148,117 @@ def manage_unknown(
     )
 
 
+# --- manage_research ---------------------------------------------------------
+#
+# Not in T16's own scope — T16 built the Discovery-facing writers only.
+# `ppa/agents/registry.py::GRANTS["guidance"]`/`GRANTS["research"]` have
+# named `manage_research` since T14, and `Unknown.route == "RESEARCH"`
+# (T02) has always implied *something* eventually writes a `ResearchFinding`
+# — but nothing did until T28 needed the Guidance subagent to actually
+# persist a `GuidanceBrief` as one. Lives here, not in a new file, for the
+# same reason every other `manage_*` writer does: one shared writer module,
+# one shared `_commit_write`/`_reject_write`/`_generic_transition` plumbing
+# (decision #36, blockers.md).
+
+_RESEARCH_CREATE_REQUIRED = ("question", "method", "summary", "confidence", "confidence_basis")
+
+
+def _research_create(
+    project: Project, *, actor_id: str, session_id: str, workflow_state: str, agent_id: str,
+    actor_role: str, now: datetime, idem_key: str | None, args: dict[str, Any], kwargs: dict[str, Any],
+) -> ToolResult:
+    tool = "manage_research"
+    missing = _missing_fields(kwargs, _RESEARCH_CREATE_REQUIRED)
+    if missing:
+        result = _error(
+            ErrorCategory.VALIDATION, "MISSING_REQUIRED_FIELD",
+            f"{tool}(create) requires {', '.join(_RESEARCH_CREATE_REQUIRED)}. Missing: {', '.join(missing)}.",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="missing required field(s)", result=result)
+
+    question, _findings = scan_and_redact(kwargs["question"])
+    method, _findings = scan_and_redact(kwargs["method"])
+    summary, _findings = scan_and_redact(kwargs["summary"])
+    confidence_basis, _findings = scan_and_redact(kwargs["confidence_basis"])
+
+    after = dict(
+        id="PENDING", version=1, created_at=now.isoformat(), updated_at=now.isoformat(),
+        created_by=actor_id, updated_by=actor_id, history=[],
+        confidence=kwargs["confidence"], confidence_basis=confidence_basis,
+        status="ACTIVE", question=question, method=method, summary=summary,
+        options_found=list(kwargs.get("options_found") or []), sources=list(kwargs.get("sources") or []),
+        researched_at=now.isoformat(), stale_after_days=kwargs.get("stale_after_days", 90),
+        feeds_decision=kwargs.get("feeds_decision"),
+    )
+
+    exc = _validate_new_entity(ResearchFinding, after, "RES")
+    if exc is not None:
+        result = _error(ErrorCategory.VALIDATION, "SCHEMA_INVALID", f"{tool}(create): {exc}")
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="schema validation failed", result=result)
+
+    fields = dict(
+        ts=now, type=EventType.RESEARCH_RECORDED, entity_id=None, actor_id=actor_id, actor_role=actor_role,
+        agent_name=None if actor_role == "user" else agent_id, workflow_state=workflow_state, txn_id=None,
+        source=tool, reason=kwargs.get("change_reason", "research finding recorded"), before=None, after=after, session_id=session_id,
+    )
+    return _commit_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, fields=fields, args=args, reason="research finding recorded", id_prefix="RES", idem_key=idem_key)
+
+
+_RESEARCH_OPS: dict[str, _OpConfig] = {
+    "link_decision": _OpConfig(
+        event_type=EventType.RESEARCH_LINKED_TO_DECISION,
+        required=("feeds_decision",), updatable=("feeds_decision",), allowed_from=("ACTIVE",),
+    ),
+    "supersede": _OpConfig(event_type=EventType.RESEARCH_REPLACED, new_status="REPLACED"),
+}
+
+
+def manage_research(
+    operation: str,
+    project: Project,
+    *,
+    actor_id: str,
+    session_id: str,
+    workflow_state: str = "DISCOVERY",
+    agent_id: str = "guidance",
+    actor_role: str = "agent",
+    now: datetime | None = None,
+    idem_key: str | None = None,
+    **kwargs: Any,
+) -> ToolResult:
+    """`create | link_decision | supersede` — the only tool that ever
+    writes `RES-nnn` entities. `agent_id` defaults to `"guidance"`, not
+    `"discovery"` — the Discovery Agent's own grant (`ppa/agents/
+    registry.py::GRANTS`) never includes `manage_research`, only Guidance
+    and Research do. `link_decision` exists because `feeds_decision` can
+    only ever be known *after* a Decision is landed, which happens after
+    the research itself (DESIGN.md §3.5 step 7) — never at `create` time."""
+
+    tool = "manage_research"
+    ts = _now(now)
+    args = {"operation": operation, **kwargs}
+
+    if operation == "create":
+        return _research_create(
+            project, actor_id=actor_id, session_id=session_id, workflow_state=workflow_state,
+            agent_id=agent_id, actor_role=actor_role, now=ts, idem_key=idem_key, args=args, kwargs=kwargs,
+        )
+
+    config = _RESEARCH_OPS.get(operation)
+    if config is None:
+        result = _error(
+            ErrorCategory.VALIDATION, "UNKNOWN_OPERATION",
+            f"{tool}: unknown operation {operation!r} — must be one of create, link_decision, supersede",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason=f"unknown operation {operation!r}", result=result)
+
+    return _generic_transition(
+        operation, EntityType.RESEARCH_FINDING, ResearchFinding, config, project,
+        actor_id=actor_id, session_id=session_id, workflow_state=workflow_state, agent_id=agent_id,
+        actor_role=actor_role, now=ts, idem_key=idem_key, args=args, kwargs=kwargs, tool=tool,
+    )
+
+
 # --- SDK-facing handlers and ToolSpecs --------------------------------------
 
 
@@ -1246,6 +1357,10 @@ async def _manage_decision_handler(args: dict[str, Any]) -> dict[str, Any]:
 
 async def _manage_unknown_handler(args: dict[str, Any]) -> dict[str, Any]:
     return await _manage_writer_handler(manage_unknown, "manage_unknown", args)
+
+
+async def _manage_research_handler(args: dict[str, Any]) -> dict[str, Any]:
+    return await _manage_writer_handler(manage_research, "manage_research", args)
 
 
 MANAGE_REQUIREMENT_SPEC = ToolSpec(
@@ -1451,7 +1566,61 @@ MANAGE_UNKNOWN_SPEC = ToolSpec(
     },
 )
 
+MANAGE_RESEARCH_SPEC = ToolSpec(
+    name="manage_research",
+    purpose="Record, link to a Decision, or supersede a ResearchFinding — the only tool that ever writes RES-nnn entities.",
+    inputs={
+        "operation": "str, one of create|link_decision|supersede",
+        "project_slug": "str, the project's slug",
+        "entity_id": "str, RES-nnn — required for link_decision/supersede",
+        "question": "str, the question researched — required for create",
+        "method": "str, how it was researched (e.g. web search, ledger context) — required for create",
+        "summary": "str, the finding itself — required for create",
+        "confidence": "str, one of HIGH|MEDIUM|LOW — required for create",
+        "confidence_basis": "str, non-empty justification for confidence — required for create",
+        "options_found": "list[str], the options this research turned up — optional for create",
+        "sources": "list[str], citations/links — optional for create",
+        "stale_after_days": "int, defaults to 90 — optional for create",
+        "feeds_decision": "str, DEC-nnn this finding resolves — required for link_decision, unavailable at create time since the Decision isn't landed yet",
+        "change_reason": "str, why this write happened",
+    },
+    required=["operation", "project_slug"],
+    optional=[
+        "entity_id", "question", "method", "summary", "confidence", "confidence_basis",
+        "options_found", "sources", "stale_after_days", "feeds_decision", "change_reason",
+    ],
+    formats={
+        "operation": "one of: create, link_decision, supersede",
+        "confidence": "one of: HIGH, MEDIUM, LOW",
+    },
+    returns="ToolResult with data={entity_id, event_id, replayed} on success.",
+    examples=[
+        'manage_research(operation="create", project_slug="invoice-tracker", question="Which database scales better here?", method="web search", summary="Postgres handles this write pattern comfortably at this scale; a document store would not need to.", options_found=["Postgres", "MongoDB"], confidence="MEDIUM", confidence_basis="two independent benchmarks agree")',
+        'manage_research(operation="link_decision", project_slug="invoice-tracker", entity_id="RES-001", feeds_decision="DEC-004")',
+    ],
+    edge_cases=[
+        "create with no confidence_basis is rejected as VALIDATION — a bare confidence level is not enough",
+        "supersede on an already-REPLACED finding is rejected — REPLACED is terminal",
+    ],
+    limitations=[
+        "not granted to the Discovery Agent — only the Guidance and Research subagents may call this (ppa/agents/registry.py::GRANTS)",
+    ],
+    use_when=[
+        "the Guidance or Research subagent has an actual finding to persist",
+        "a Decision has just been landed and the finding that led to it needs feeds_decision set (link_decision)",
+    ],
+    do_not_use_when=[
+        "the agent is Discovery itself — Discovery hands off via request_guidance instead of researching inline",
+        "the agent only wants to read prior findings — use read_planning_state instead",
+    ],
+    related_tools={
+        "manage_decision": "the DEC-nnn a ResearchFinding's own feeds_decision points at",
+        "read_planning_state": "reads ResearchFinding entities; never writes them",
+    },
+)
+
 register(MANAGE_REQUIREMENT_SPEC, _manage_requirement_handler, owner_agents=["discovery"])
 register(MANAGE_ASSUMPTION_SPEC, _manage_assumption_handler, owner_agents=["discovery"])
 register(MANAGE_DECISION_SPEC, _manage_decision_handler, owner_agents=["discovery"])
 register(MANAGE_UNKNOWN_SPEC, _manage_unknown_handler, owner_agents=["discovery"])
+register(MANAGE_RESEARCH_SPEC, _manage_research_handler, owner_agents=["guidance", "research"])

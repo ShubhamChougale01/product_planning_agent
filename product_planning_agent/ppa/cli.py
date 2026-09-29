@@ -84,6 +84,18 @@ def report(project: str) -> None:
     _not_yet("report", "T31 (CLI and status board)")
 
 
+@app.command()
+def why(project: str, decision_id: str) -> None:
+    """Explain why a decision was made, from the ledger alone."""
+    from ppa.ledger.materialize import current_entities
+    from ppa.ledger.project import open_project
+    from ppa.render.guidance_card import render_why
+
+    proj = open_project(project)
+    entities = current_entities(proj.events_path)
+    console.print(render_why(decision_id, entities))
+
+
 @app.command(name="client-questions")
 def client_questions(project: str) -> None:
     """Render every open item owned externally as a sendable client questionnaire."""
