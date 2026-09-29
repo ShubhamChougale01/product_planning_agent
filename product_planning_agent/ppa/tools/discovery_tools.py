@@ -1094,8 +1094,8 @@ def _unknown_convert_semantic_check(entities: Mapping[str, BaseEntity], entity: 
 _UNKNOWN_OPS: dict[str, _OpConfig] = {
     "classify": _OpConfig(
         event_type=EventType.UNKNOWN_CLASSIFIED,
-        require_any_of=("blocking", "route", "area", "why_it_matters"),
-        updatable=("blocking", "route", "area", "why_it_matters"),
+        require_any_of=("blocking", "route", "area", "why_it_matters", "owner_type"),
+        updatable=("blocking", "route", "area", "why_it_matters", "owner_type"),
         allowed_from=("OPEN",),
     ),
     "resolve": _OpConfig(event_type=EventType.UNKNOWN_RESOLVED, new_status="RESOLVED"),

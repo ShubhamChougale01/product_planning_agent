@@ -95,22 +95,6 @@ def test_delivery_agent_invoke_returns_structured_not_implemented(tmp_path):
     assert "Delivery is v3" in result.summary
 
 
-def test_research_invoke_also_returns_structured_not_implemented(tmp_path):
-    """Real turn behavior for Research lands in T29 — until then, the stub
-    returns a structured result, never raises. Discovery and Guidance are
-    no longer part of this test: T23 gave Discovery real turn behavior
-    (`ppa.agents.turn.run_discovery_turn`, exercised in `tests/test_agents/
-    test_modes.py`), and T28 gave Guidance real behavior (`ppa.agents.
-    subagents.guidance.run_guidance_session`, exercised in `tests/eval/
-    test_guidance.py`) — invoking either here would need a real, readable
-    `project.json` behind `ctx.audit_path`, which this file's own bare
-    `_ctx` fixture deliberately does not provide."""
-
-    result = AGENTS["research"].invoke(_ctx("research", tmp_path))
-    assert result.status == AgentResultStatus.NOT_IMPLEMENTED
-    assert result.summary.strip()
-
-
 def test_orchestrator_invoke_returns_structured_not_implemented(tmp_path):
     result = AGENTS["orchestrator"].invoke(_ctx("orchestrator", tmp_path))
     assert result.status == AgentResultStatus.NOT_IMPLEMENTED
