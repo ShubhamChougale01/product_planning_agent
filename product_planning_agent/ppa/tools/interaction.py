@@ -290,6 +290,100 @@ def ask_user(
     return ToolResult(success=True, result_count=len(entries), data=entries)
 
 
+def answer_pending_question(
+    project: Project,
+    question_id: str,
+    answer: dict[str, Any],
+    *,
+    actor_id: str,
+    session_id: str,
+    workflow_state: str = "DISCOVERY",
+    agent_id: str = "discovery",
+    actor_role: str = "user",
+    now: datetime | None = None,
+) -> ToolResult:
+    """Record an answer against a `Q-nnn` a prior turn already asked and
+    left `PENDING` — the "caller (T31's CLI) answers it later" half
+    `ask_user`'s own docstring and edge_cases already name, finally built.
+    Mirrors `_ask_and_maybe_answer_one`'s own replace-then-answer event pair
+    exactly, just against an existing question rather than one this same
+    call also creates."""
+
+    from ppa.ledger.materialize import current_entities, entity_type_for
+    from ppa.ledger.models import EntityType, QuestionAnswer
+
+    ts = _now(now)
+    entities = current_entities(project.events_path)
+    question = entities.get(question_id)
+    if question is None or entity_type_for(question_id) is not EntityType.QUESTION_ANSWER or question.status != "PENDING":
+        return _error(
+            ErrorCategory.VALIDATION, "NOT_PENDING",
+            f"{question_id!r} is not a PENDING question awaiting an answer",
+        )
+    assert isinstance(question, QuestionAnswer)
+
+    kind = answer.get("answer_kind")
+    if kind not in _ANSWER_KINDS:
+        return _error(
+            ErrorCategory.VALIDATION, "INVALID_ANSWER_KIND",
+            f"answer_kind must be one of {sorted(_ANSWER_KINDS)}, got {kind!r}",
+        )
+    answer_text = answer.get("answer_text")
+    if kind in ("answered", "not_relevant") and not (answer_text or "").strip():
+        meaning = "the answer text" if kind == "answered" else "a reason it isn't relevant"
+        return _error(
+            ErrorCategory.VALIDATION, "MISSING_ANSWER_TEXT",
+            f"answer_kind={kind!r} requires answer_text ({meaning}) — not_relevant must record why",
+        )
+    if answer_text:
+        answer_text, _findings = scan_and_redact(answer_text)
+    dont_know_kind = answer.get("dont_know_kind")
+
+    question_snapshot = question.model_dump(mode="json")
+    replaced_after = dict(
+        question_snapshot, status="REPLACED", version=question.version + 1,
+        updated_at=ts.isoformat(), updated_by=actor_id,
+        history=[
+            *question_snapshot["history"],
+            HistoryEntry(
+                field="status", old_value="PENDING", new_value="REPLACED",
+                changed_at=ts, changed_by=actor_id, reason="superseded by a recorded answer",
+            ).model_dump(mode="json"),
+        ],
+    )
+    agent_name = None if actor_role == "user" else agent_id
+    replace_fields = dict(
+        ts=ts, type=EventType.QUESTION_REPLACED, entity_id=question_id, actor_id=actor_id, actor_role=actor_role,
+        agent_name=agent_name, workflow_state=workflow_state, txn_id=None, source="ask_user",
+        reason="answer recorded, superseding the pending question", before=question_snapshot,
+        after=replaced_after, session_id=session_id,
+    )
+    _commit_one(
+        project, tool="ask_user", agent_id=agent_id, workflow_state=workflow_state, fields=replace_fields,
+        args={"question_id": question_id, "answer": answer}, reason="question replaced by answer",
+    )
+
+    answer_after = dict(
+        id="PENDING", version=1, created_at=ts.isoformat(), updated_at=ts.isoformat(),
+        created_by=actor_id, updated_by=actor_id, history=[],
+        status="ANSWERED", text=question.text, why_asked=question.why_asked, target_areas=question.target_areas,
+        round=question.round, suggested_options=question.suggested_options,
+        recommended_default=question.recommended_default,
+        answer_kind=kind, dont_know_kind=dont_know_kind, answer_text=answer_text, answered_at=ts.isoformat(),
+    )
+    answer_fields = dict(
+        ts=ts, type=EventType.ANSWER_RECORDED, entity_id=None, actor_id=actor_id, actor_role=actor_role,
+        agent_name=agent_name, workflow_state=workflow_state, txn_id=None, source="ask_user",
+        reason=f"answer recorded ({kind})", before=None, after=answer_after, session_id=session_id,
+    )
+    result = _commit_one(
+        project, tool="ask_user", agent_id=agent_id, workflow_state=workflow_state, fields=answer_fields,
+        args={"question_id": question_id, "answer": answer}, reason="answer recorded", id_prefix="ANS",
+    )
+    rebuild_all(project.events_path)
+    return result
+
+
 def _coerce_questions(value: Any) -> list[dict[str, Any]]:
     """Bug #10 (`blockers.md`): the MCP boundary declares every field `str`
     to the SDK (decision #22), so a real model call sends `questions` as a

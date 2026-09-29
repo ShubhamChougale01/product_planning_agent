@@ -69,13 +69,13 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | | Task | Est | Model |
 |---|---|---|---|
 | ☑ | `t30_review_and_change_handling.md` Review mode and change handling | 1 day | Yes |
-| ☐ | `t31_cli_and_status_board.md` CLI and status board | 1 day | No |
+| ☑ | `t31_cli_and_status_board.md` CLI and status board | 1 day | No |
 
 ### F · Resilience and validation  ·  5d
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t32_transactions_retry_recovery.md` Transactions, retry, recovery and escalation | 1.5 day | No |
+| ☑ | `t32_transactions_retry_recovery.md` Transactions, retry, recovery and escalation | 1.5 day | No |
 | ☐ | `t33_eval_fixtures_and_personas.md` Eval fixtures and personas | 0.75 day | Yes |
 | ☐ | `t34_eval_suite_and_baseline.md` Eval suite, metrics and baseline | 1.75 day | Yes |
 | ☐ | `t35_hardening_and_documentation.md` Hardening and documentation | 1 day | No |
