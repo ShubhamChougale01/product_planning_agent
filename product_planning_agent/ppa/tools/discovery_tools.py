@@ -1316,10 +1316,14 @@ MANAGE_ASSUMPTION_SPEC = ToolSpec(
         "impact": "str, one of HIGH|MEDIUM|LOW — required for create",
         "confidence": "str, one of HIGH|MEDIUM|LOW — required for create",
         "confidence_basis": "str, non-empty justification for confidence — required for create",
+        "provisional": "bool, true when this assumption stands in pending an *external* party's confirmation "
+        "(a client, not the user) rather than the user's own — optional for create, defaults to false. "
+        "Bug #13 (blockers.md): this field was handled by the writer but never exposed here, so no caller "
+        "could ever actually set it through this tool.",
         "change_reason": "str, why this write happened",
     },
     required=["operation", "project_slug"],
-    optional=["entity_id", "statement", "reason", "impact", "confidence", "confidence_basis", "change_reason"],
+    optional=["entity_id", "statement", "reason", "impact", "confidence", "confidence_basis", "provisional", "change_reason"],
     formats={
         "operation": "one of: create, confirm, reject, modify, supersede",
         "impact": "one of: HIGH, MEDIUM, LOW",

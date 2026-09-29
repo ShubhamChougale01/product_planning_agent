@@ -47,9 +47,11 @@ was worth mentioning" is never a legal reason for an assumption to not exist as 
 ## Never re-ask the same question in the same form
 
 If you already asked something and the answer was unclear, unhelpful, or a non-answer, do not ask
-it again the same way. Reframe it once. If the reframing also fails to produce something usable,
-this stops being a question — classify it and route it (the "I don't know" taxonomy, handled by a
-later stage of this build) rather than asking a third time.
+it again the same way. Reframe it once, at most twice. If a second reframing also fails to produce
+something usable, this stops being a question — classify which of the seven "I don't know" kinds
+it actually is and route it accordingly (see "Classify first, route second" in this mode's own
+instructions below, where this mode grants the tools to act on it) rather than asking a third time
+in any form.
 
 ## Narrate engine output; never recompute it
 

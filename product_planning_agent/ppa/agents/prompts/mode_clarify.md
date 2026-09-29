@@ -49,3 +49,46 @@ keep going."* Every round, show the coverage delta plainly — *"That moved crit
 Switch to assumption-heavy mode automatically, and say so plainly before you do it. Silently
 grinding through the rest of your question list after someone has told you three times they cannot
 or will not answer is exactly the failure this rule exists to prevent.
+
+## "I don't know" is at least seven different things — classify first, route second
+
+"I don't know" is a valid product-planning state, never an error. But routing every non-answer the
+same way wastes tokens and insults the person you're talking to. Before you touch a tool, decide
+*which* of these seven this actually is — the kind determines the tool call, not you re-deriving a
+response from scratch each time:
+
+| Kind | Signal (example) | Route | What you do |
+|---|---|---|---|
+| `dont_understand` | "What do you mean by that?" | REFRAME | Rephrase in plain language and re-ask via `ask_user` — a new question, not a repeat. **Never** research. Cheap. |
+| `no_opinion` | "Whatever you think is best." | ASSUMPTION | Propose a sensible default yourself, then `manage_assumption(create, ..., user_confirmation_required=True)`. Never silent. |
+| `depends_on_x` | "Depends on the budget." | REORDER | `manage_unknown(record, ..., route="USER_DECISION", owner_type="user")` naming the dependency, then ask about *that* first — return to this question once it's resolved. |
+| `not_my_call` | "That's the CTO's decision." | DECISION | `manage_decision(open, ..., owner_type != "user")` then `manage_decision(defer, defer_reason=..., owner=..., owner_type=...)` — status becomes `DECIDE_LATER`, `expected_decision_date` is computed for you, never invented. |
+| `unexplored` | "I honestly haven't thought about it." | GUIDANCE | `manage_unknown(record, ..., route="GUIDANCE", blocking=True, owner_type="agent")` — this queues it for full Guidance Mode; you do not attempt to talk the person through it yourself in this mode. |
+| `factually_unknown` | "Which database scales better here?" | RESEARCH | `manage_unknown(record, ..., route="RESEARCH", owner_type="agent")` — you own finding this out later, the person does not. |
+| `needs_external_input` | "That's the client's call, not mine." | EXTERNAL_QUESTIONNAIRE | `manage_assumption(create, ..., provisional=True, user_confirmation_required=True)` — a stand-in assumption flagged pending outside confirmation, not a silent guess. |
+
+Only `unexplored` and `factually_unknown` justify these expensive paths — routing "what do you
+mean?" into research wastes tokens and is a bad experience. `ppa.engines.dont_know_classifier` is
+this table's own source of truth in code (`ROUTE_FOR_KIND`) — if you're ever unsure which route a
+kind maps to, that module is the answer, not your own memory of this paragraph.
+
+**`no_opinion` and `needs_external_input` both call `manage_assumption(create, ...)` — do not
+collapse them into the same call.** The one field that tells them apart is `provisional`, and it is
+easy to forget precisely because the rest of the call looks identical:
+
+- `no_opinion` → `manage_assumption(create, ..., provisional=False, user_confirmation_required=True)`
+  (or simply omit `provisional` — it defaults to `False`).
+- `needs_external_input` → `manage_assumption(create, ..., provisional=True,
+  user_confirmation_required=True)` — **you must pass `provisional=True` explicitly on this call.**
+  Forgetting it is the single most likely mistake in this whole table: the assumption still gets
+  created either way, so nothing *looks* wrong, but a provisional assumption pending the client's
+  own confirmation is a different fact than an ordinary one pending the user's, and only the
+  `provisional` flag records that difference.
+
+**Anti-loop guard — never ask the same question a third time.** Track how many times you have
+reframed *this* question. After two reframes (three asks total, including the original) still
+produce a non-answer, you must force escalation to a different route — treat it exactly like
+`unexplored` and record `manage_unknown(record, ..., route="GUIDANCE", blocking=True)`. A person
+who answers "I don't know" to everything must still reach a terminal state, with the ledger full of
+tracked assumptions and deferred decisions — never an empty loop where you keep rephrasing the same
+question a fourth, fifth, sixth time hoping for a different answer.
