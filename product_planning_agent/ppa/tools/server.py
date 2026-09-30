@@ -64,9 +64,20 @@ def server_for(agent_id: str, *, server_name: str | None = None) -> McpSdkServer
     )
 
 
-def allowed_tool_names(agent_id: str) -> list[str]:
+def allowed_tool_names(agent_id: str, *, server_name: str | None = None) -> list[str]:
     """The names to pass as `ClaudeAgentOptions.allowed_tools` — derived
     from the same grant table `server_for` reads, so the hint the model
-    gets and the tools actually wired up can never drift apart."""
+    gets and the tools actually wired up can never drift apart.
 
-    return [t.spec.name for t in tools_for_agent(agent_id)]
+    **Must be the fully-qualified `mcp__<server_name>__<tool_name>` form**,
+    matching whatever `server_name` the corresponding server is actually
+    registered under in `ClaudeAgentOptions.mcp_servers` (default: the same
+    `f"{agent_id}-tools"` `server_for` itself defaults to). A bare tool name
+    here is not a lesser hint, it is silently wrong: the SDK's own
+    permission layer matches `allowed_tools` against the qualified name, so
+    a bare name never actually grants anything — verified live against a
+    real model (bug #5, `blockers.md`): a genuinely-granted tool called
+    under its bare name came back `"you haven't granted it yet"`."""
+
+    server_name = server_name or f"{agent_id}-tools"
+    return [f"mcp__{server_name}__{t.spec.name}" for t in tools_for_agent(agent_id)]

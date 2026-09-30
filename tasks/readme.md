@@ -49,34 +49,34 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | | Task | Est | Model |
 |---|---|---|---|
 | ☑ | `t20_agent_protocol_and_workflow.md` Agent protocol and workflow state machine | 0.75 day | No |
-| ☐ | `t21_preconditions_and_outer_loop.md` Preconditions and the outer loop | 1 day | Yes — first agent invocation |
-| ☐ | `t22_guardrail_suite.md` Guardrail suite | 0.5 day | No |
+| ☑ | `t21_preconditions_and_outer_loop.md` Preconditions and the outer loop | 1 day | Yes — first agent invocation |
+| ☑ | `t22_guardrail_suite.md` Guardrail suite | 0.5 day | No |
 
 ### D · Discovery Agent — the intelligence layer  ·  6d
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t23_discovery_prompt_and_modes.md` Discovery system prompt and internal modes | 1 day | Yes |
-| ☐ | `t24_intake_mode.md` Intake mode — the opening move | 0.5 day | Yes |
-| ☐ | `t25_clarify_mode_question_engine.md` Clarify mode and the question engine | 1 day | Yes |
-| ☐ | `t26_dont_know_routing.md` \"I don't know\" classification and routing | 1 day | Yes |
-| ☐ | `t27_external_input_questionnaire.md` External input routing and the client questionnaire | 0.5 day | Yes |
-| ☐ | `t28_guidance_subagent.md` Guidance Mode subagent | 1.25 day | Yes + web |
-| ☐ | `t29_research_and_degradation.md` Research mode and provider degradation | 0.75 day | Yes + web |
+| ☑ | `t23_discovery_prompt_and_modes.md` Discovery system prompt and internal modes | 1 day | Yes |
+| ☑ | `t24_intake_mode.md` Intake mode — the opening move | 0.5 day | Yes |
+| ☑ | `t25_clarify_mode_question_engine.md` Clarify mode and the question engine | 1 day | Yes |
+| ☑ | `t26_dont_know_routing.md` \"I don't know\" classification and routing | 1 day | Yes |
+| ☑ | `t27_external_input_questionnaire.md` External input routing and the client questionnaire | 0.5 day | Yes |
+| ☑ | `t28_guidance_subagent.md` Guidance Mode subagent | 1.25 day | Yes + web |
+| ☑ | `t29_research_and_degradation.md` Research mode and provider degradation | 0.75 day | Yes + web |
 
 ### E · Product surface  ·  2d
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t30_review_and_change_handling.md` Review mode and change handling | 1 day | Yes |
-| ☐ | `t31_cli_and_status_board.md` CLI and status board | 1 day | No |
+| ☑ | `t30_review_and_change_handling.md` Review mode and change handling | 1 day | Yes |
+| ☑ | `t31_cli_and_status_board.md` CLI and status board | 1 day | No |
 
 ### F · Resilience and validation  ·  5d
 
 | | Task | Est | Model |
 |---|---|---|---|
-| ☐ | `t32_transactions_retry_recovery.md` Transactions, retry, recovery and escalation | 1.5 day | No |
-| ☐ | `t33_eval_fixtures_and_personas.md` Eval fixtures and personas | 0.75 day | Yes |
+| ☑ | `t32_transactions_retry_recovery.md` Transactions, retry, recovery and escalation | 1.5 day | No |
+| ☑ | `t33_eval_fixtures_and_personas.md` Eval fixtures and personas | 0.75 day | Yes |
 | ☐ | `t34_eval_suite_and_baseline.md` Eval suite, metrics and baseline | 1.75 day | Yes |
 | ☐ | `t35_hardening_and_documentation.md` Hardening and documentation | 1 day | No |
 

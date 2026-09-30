@@ -1,0 +1,17 @@
+name: f03_vague_legacy_invoicing_client
+seed_requirement: "Client wants us to bolt payment reminders onto their old invoicing system, not sure exactly what for."
+profile:
+  role: engineer
+  technical_depth: high
+  domain_familiarity: low
+axes:
+  detail: vague
+  market: b2b
+  system: legacy
+  author: engineer
+  ownership: client
+notes: >
+  Vague AND a client project AND a legacy integration all at once — the
+  hardest combination on three axes together. Exercises T27 (external
+  ownership routing) immediately, since the requester openly doesn't know
+  the client's own reason for asking.

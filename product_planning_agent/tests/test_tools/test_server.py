@@ -92,11 +92,24 @@ def test_sdk_tool_description_comes_from_the_one_renderer():
 # ---------------------------------------------------------------------------
 
 
-def test_allowed_tool_names_matches_granted_sdk_tools():
+def test_allowed_tool_names_matches_granted_sdk_tools_fully_qualified():
+    """Bug #5 (`blockers.md`): `allowed_tools` must carry the
+    `mcp__<server>__<tool>` form the SDK's own permission layer actually
+    matches against — a bare name silently grants nothing, verified live
+    against a real model."""
+
     register(_spec("discovery_only"), _noop_handler, owner_agents=["discovery"])
     register(_spec("shared_tool"), _noop_handler, owner_agents=["discovery", "planning"])
 
-    assert set(allowed_tool_names("discovery")) == {t.name for t in granted_sdk_tools("discovery")}
+    assert set(allowed_tool_names("discovery")) == {
+        f"mcp__discovery-tools__{t.name}" for t in granted_sdk_tools("discovery")
+    }
+
+
+def test_allowed_tool_names_honors_a_custom_server_name():
+    register(_spec("discovery_only"), _noop_handler, owner_agents=["discovery"])
+
+    assert allowed_tool_names("discovery", server_name="custom-name") == ["mcp__custom-name__discovery_only"]
 
 
 def test_no_module_hand_writes_a_tool_description_string():

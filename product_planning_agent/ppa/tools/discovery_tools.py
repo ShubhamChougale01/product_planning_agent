@@ -21,6 +21,7 @@ never prose — narration is the model's job, at the point of use.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
@@ -37,7 +38,7 @@ from ppa.ledger.audit import AuditResult, record_audit
 from ppa.ledger.digest import generate_digest
 from ppa.ledger.events import EventType
 from ppa.ledger.materialize import current_entities, entity_type_for, rebuild_all
-from ppa.ledger.models import Assumption, BaseEntity, Decision, EntityType, HistoryEntry, Requirement, Unknown
+from ppa.ledger.models import Assumption, BaseEntity, Decision, EntityType, HistoryEntry, Requirement, ResearchFinding, Unknown
 from ppa.ledger.project import DEFAULT_PROJECTS_ROOT, Project, open_project
 from ppa.ledger.secrets import scan_and_redact
 from ppa.ledger.store import append_event_with_id, ledger_version
@@ -814,7 +815,15 @@ def _assumption_create(
         status="PROPOSED", statement=statement, reason=reason_text, impact=kwargs["impact"],
         affects_requirements=list(kwargs.get("affects_requirements") or []),
         affects_areas=list(kwargs.get("affects_areas") or []),
-        user_confirmation_required=kwargs.get("user_confirmation_required", False),
+        # Bug #11 (blockers.md): always True, never caller-supplied — DESIGN.md
+        # Part 1's own rule is unconditional ("No silent assumptions, ever.
+        # Every inference becomes an ASM with user_confirmation_required"),
+        # the same "computed by the tool, can never be silently wrong"
+        # pattern decision #24 already applied to expected_decision_date.
+        # Defaulting to False when the caller omitted it (the previous
+        # behavior) let every assumption a real model actually created come
+        # back unflagged, verified live.
+        user_confirmation_required=True,
         confirmed_at=None, confirmed_by=None, provisional=kwargs.get("provisional", False),
     )
 
@@ -1085,8 +1094,8 @@ def _unknown_convert_semantic_check(entities: Mapping[str, BaseEntity], entity: 
 _UNKNOWN_OPS: dict[str, _OpConfig] = {
     "classify": _OpConfig(
         event_type=EventType.UNKNOWN_CLASSIFIED,
-        require_any_of=("blocking", "route", "area", "why_it_matters"),
-        updatable=("blocking", "route", "area", "why_it_matters"),
+        require_any_of=("blocking", "route", "area", "why_it_matters", "owner_type"),
+        updatable=("blocking", "route", "area", "why_it_matters", "owner_type"),
         allowed_from=("OPEN",),
     ),
     "resolve": _OpConfig(event_type=EventType.UNKNOWN_RESOLVED, new_status="RESOLVED"),
@@ -1139,12 +1148,265 @@ def manage_unknown(
     )
 
 
+# --- manage_research ---------------------------------------------------------
+#
+# Not in T16's own scope — T16 built the Discovery-facing writers only.
+# `ppa/agents/registry.py::GRANTS["guidance"]`/`GRANTS["research"]` have
+# named `manage_research` since T14, and `Unknown.route == "RESEARCH"`
+# (T02) has always implied *something* eventually writes a `ResearchFinding`
+# — but nothing did until T28 needed the Guidance subagent to actually
+# persist a `GuidanceBrief` as one. Lives here, not in a new file, for the
+# same reason every other `manage_*` writer does: one shared writer module,
+# one shared `_commit_write`/`_reject_write`/`_generic_transition` plumbing
+# (decision #36, blockers.md).
+
+_RESEARCH_CREATE_REQUIRED = ("question", "method", "summary", "confidence", "confidence_basis")
+
+
+def _research_create(
+    project: Project, *, actor_id: str, session_id: str, workflow_state: str, agent_id: str,
+    actor_role: str, now: datetime, idem_key: str | None, args: dict[str, Any], kwargs: dict[str, Any],
+) -> ToolResult:
+    tool = "manage_research"
+    missing = _missing_fields(kwargs, _RESEARCH_CREATE_REQUIRED)
+    if missing:
+        result = _error(
+            ErrorCategory.VALIDATION, "MISSING_REQUIRED_FIELD",
+            f"{tool}(create) requires {', '.join(_RESEARCH_CREATE_REQUIRED)}. Missing: {', '.join(missing)}.",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="missing required field(s)", result=result)
+
+    question, _findings = scan_and_redact(kwargs["question"])
+    method, _findings = scan_and_redact(kwargs["method"])
+    summary, _findings = scan_and_redact(kwargs["summary"])
+    confidence_basis, _findings = scan_and_redact(kwargs["confidence_basis"])
+
+    after = dict(
+        id="PENDING", version=1, created_at=now.isoformat(), updated_at=now.isoformat(),
+        created_by=actor_id, updated_by=actor_id, history=[],
+        confidence=kwargs["confidence"], confidence_basis=confidence_basis,
+        status="ACTIVE", question=question, method=method, summary=summary,
+        options_found=list(kwargs.get("options_found") or []), sources=list(kwargs.get("sources") or []),
+        researched_at=now.isoformat(), stale_after_days=kwargs.get("stale_after_days", 90),
+        feeds_decision=kwargs.get("feeds_decision"),
+    )
+
+    exc = _validate_new_entity(ResearchFinding, after, "RES")
+    if exc is not None:
+        result = _error(ErrorCategory.VALIDATION, "SCHEMA_INVALID", f"{tool}(create): {exc}")
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="schema validation failed", result=result)
+
+    fields = dict(
+        ts=now, type=EventType.RESEARCH_RECORDED, entity_id=None, actor_id=actor_id, actor_role=actor_role,
+        agent_name=None if actor_role == "user" else agent_id, workflow_state=workflow_state, txn_id=None,
+        source=tool, reason=kwargs.get("change_reason", "research finding recorded"), before=None, after=after, session_id=session_id,
+    )
+    return _commit_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, fields=fields, args=args, reason="research finding recorded", id_prefix="RES", idem_key=idem_key)
+
+
+_RESEARCH_OPS: dict[str, _OpConfig] = {
+    "link_decision": _OpConfig(
+        event_type=EventType.RESEARCH_LINKED_TO_DECISION,
+        required=("feeds_decision",), updatable=("feeds_decision",), allowed_from=("ACTIVE",),
+    ),
+    "supersede": _OpConfig(event_type=EventType.RESEARCH_REPLACED, new_status="REPLACED"),
+}
+
+
+def manage_research(
+    operation: str,
+    project: Project,
+    *,
+    actor_id: str,
+    session_id: str,
+    workflow_state: str = "DISCOVERY",
+    agent_id: str = "guidance",
+    actor_role: str = "agent",
+    now: datetime | None = None,
+    idem_key: str | None = None,
+    **kwargs: Any,
+) -> ToolResult:
+    """`create | link_decision | supersede` — the only tool that ever
+    writes `RES-nnn` entities. `agent_id` defaults to `"guidance"`, not
+    `"discovery"` — the Discovery Agent's own grant (`ppa/agents/
+    registry.py::GRANTS`) never includes `manage_research`, only Guidance
+    and Research do. `link_decision` exists because `feeds_decision` can
+    only ever be known *after* a Decision is landed, which happens after
+    the research itself (DESIGN.md §3.5 step 7) — never at `create` time."""
+
+    tool = "manage_research"
+    ts = _now(now)
+    args = {"operation": operation, **kwargs}
+
+    if operation == "create":
+        return _research_create(
+            project, actor_id=actor_id, session_id=session_id, workflow_state=workflow_state,
+            agent_id=agent_id, actor_role=actor_role, now=ts, idem_key=idem_key, args=args, kwargs=kwargs,
+        )
+
+    config = _RESEARCH_OPS.get(operation)
+    if config is None:
+        result = _error(
+            ErrorCategory.VALIDATION, "UNKNOWN_OPERATION",
+            f"{tool}: unknown operation {operation!r} — must be one of create, link_decision, supersede",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason=f"unknown operation {operation!r}", result=result)
+
+    return _generic_transition(
+        operation, EntityType.RESEARCH_FINDING, ResearchFinding, config, project,
+        actor_id=actor_id, session_id=session_id, workflow_state=workflow_state, agent_id=agent_id,
+        actor_role=actor_role, now=ts, idem_key=idem_key, args=args, kwargs=kwargs, tool=tool,
+    )
+
+
+# --- manage_conflict ---------------------------------------------------------
+#
+# Not in T20's own scope either — DESIGN.md §2.5's own table names
+# `CHANGE_REQUESTED` as reachable from every state and `ppa/workflow/
+# transitions.yaml`'s own comment says "which earlier state [to rewind to]
+# is impact analysis's call (T30)", but nothing before T30 ever needed to
+# record the model's own verdict on a `ppa.engines.conflicts.Candidate`
+# (contradiction/refinement/unrelated). A system/meta event, no `entity_id`
+# — the same shape `ppa/tools/approval.py`'s `approval.granted`/`revoked`
+# already use for "a fact about the session, not a ledger entity."
+# Readiness gate condition 6's `unresolved_conflicts` (decision #19) folds
+# from every adjudication still `verdict="contradiction"` and `resolved=
+# False` (`ppa.agents.modes.change.unresolved_conflicts_from_events`).
+
+_CONFLICT_ADJUDICATE_REQUIRED = ("subject_id", "candidate_id", "verdict", "resolved")
+_CONFLICT_VERDICTS = frozenset({"contradiction", "refinement", "unrelated"})
+
+
+def _conflict_adjudicate(
+    project: Project, *, actor_id: str, session_id: str, workflow_state: str, agent_id: str,
+    actor_role: str, now: datetime, idem_key: str | None, args: dict[str, Any], kwargs: dict[str, Any],
+) -> ToolResult:
+    tool = "manage_conflict"
+    missing = _missing_fields(kwargs, _CONFLICT_ADJUDICATE_REQUIRED)
+    if missing:
+        result = _error(
+            ErrorCategory.VALIDATION, "MISSING_REQUIRED_FIELD",
+            f"{tool}(adjudicate) requires {', '.join(_CONFLICT_ADJUDICATE_REQUIRED)}. Missing: {', '.join(missing)}.",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="missing required field(s)", result=result)
+
+    verdict = kwargs["verdict"]
+    if verdict not in _CONFLICT_VERDICTS:
+        result = _error(
+            ErrorCategory.VALIDATION, "INVALID_VERDICT",
+            f"{tool}(adjudicate): verdict must be one of {sorted(_CONFLICT_VERDICTS)}, got {verdict!r}",
+        )
+        return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason="invalid verdict", result=result)
+
+    explanation, _findings = scan_and_redact(kwargs.get("explanation") or "")
+
+    after = dict(
+        subject_id=kwargs["subject_id"], candidate_id=kwargs["candidate_id"], verdict=verdict,
+        resolved=bool(kwargs["resolved"]), explanation=explanation,
+    )
+    fields = dict(
+        ts=now, type=EventType.CONFLICT_ADJUDICATED, entity_id=None, actor_id=actor_id, actor_role=actor_role,
+        agent_name=None if actor_role == "user" else agent_id, workflow_state=workflow_state, txn_id=None,
+        source=tool, reason=kwargs.get("change_reason", f"conflict adjudicated: {verdict}"), before=None, after=after, session_id=session_id,
+    )
+    return _commit_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, fields=fields, args=args, reason="conflict adjudicated", id_prefix=None, idem_key=idem_key)
+
+
+def manage_conflict(
+    operation: str,
+    project: Project,
+    *,
+    actor_id: str,
+    session_id: str,
+    workflow_state: str = "DISCOVERY",
+    agent_id: str = "discovery",
+    actor_role: str = "agent",
+    now: datetime | None = None,
+    idem_key: str | None = None,
+    **kwargs: Any,
+) -> ToolResult:
+    """`adjudicate` — the only operation. Records the model's own verdict on
+    one conflict candidate; never mutates the entities the candidate names
+    itself (`manage_requirement`/`manage_assumption`/`manage_decision`'s own
+    `supersede` operations do that, called separately when `resolved=True`)."""
+
+    tool = "manage_conflict"
+    ts = _now(now)
+    args = {"operation": operation, **kwargs}
+
+    if operation == "adjudicate":
+        return _conflict_adjudicate(
+            project, actor_id=actor_id, session_id=session_id, workflow_state=workflow_state,
+            agent_id=agent_id, actor_role=actor_role, now=ts, idem_key=idem_key, args=args, kwargs=kwargs,
+        )
+
+    result = _error(
+        ErrorCategory.VALIDATION, "UNKNOWN_OPERATION",
+        f"{tool}: unknown operation {operation!r} — must be adjudicate",
+    )
+    return _reject_write(project, tool=tool, agent_id=agent_id, workflow_state=workflow_state, args=args, reason=f"unknown operation {operation!r}", result=result)
+
+
 # --- SDK-facing handlers and ToolSpecs --------------------------------------
+
+
+_LIST_FIELDS = frozenset(
+    {
+        "covers_areas", "derived_from_answers", "depends_on_assumptions", "depends_on_decisions",
+        "affects_requirements", "affects_areas", "options", "prerequisites", "related_requirements",
+        "related_research", "target_areas", "suggested_options",
+    }
+)
+"""Every `list[str]` field any `manage_*` writer accepts on `create` (see
+`ppa/ledger/models.py`) — used to coerce the MCP boundary's raw string form
+back into a real list. See bug #10, `blockers.md`."""
+
+_BOOL_FIELDS = frozenset({"needs_user_confirmation", "user_confirmation_required", "provisional", "blocking"})
+"""Every `bool` field any `manage_*` writer accepts — same coercion need as
+`_LIST_FIELDS`, for the same reason."""
+
+
+def _coerce_mcp_value(key: str, value: Any) -> Any:
+    """Bug #10 (`blockers.md`): `ppa/tools/server.py::_sdk_input_schema`
+    declares every field `str` to the SDK (decision #22) — real per-field
+    typing is deferred to validation layer 2, which is not actually wired
+    into this call path (decision #26). Left uncoerced, a writer function
+    received `covers_areas` as the literal string the model sent (a JSON
+    array, a comma-separated list, or a bare word — the model tried all
+    three) and `list("problem")` in `_requirement_create` split it into
+    individual characters, rejecting every real call with
+    `MISSING_COVERS_AREAS` regardless of what was actually sent. Verified
+    live: a real intake turn hit this for every one of its 7 drafted
+    requirements before diagnosing it itself and refusing to fabricate a
+    persisted result.
+
+    Only coerces when `value` actually arrived as a string — a caller that
+    already passes a real `list`/`bool` (every existing Python-level test
+    in this codebase, calling the writer functions directly) is untouched.
+    """
+
+    if key in _LIST_FIELDS and isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return []
+        try:
+            parsed = json.loads(stripped)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        else:
+            if isinstance(parsed, list):
+                return parsed
+        return [item.strip() for item in stripped.split(",") if item.strip()]
+
+    if key in _BOOL_FIELDS and isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+
+    return value
 
 
 def _writer_kwargs_from_args(args: dict[str, Any], extra: tuple[str, ...] = ()) -> dict[str, Any]:
     excluded = {"operation", "project_slug", "projects_root", "actor_id", "session_id", "workflow_state", "agent_id", "actor_role", "idem_key", *extra}
-    return {k: v for k, v in args.items() if k not in excluded}
+    return {k: _coerce_mcp_value(k, v) for k, v in args.items() if k not in excluded}
 
 
 async def _manage_writer_handler(writer: Callable[..., ToolResult], tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -1183,6 +1445,14 @@ async def _manage_decision_handler(args: dict[str, Any]) -> dict[str, Any]:
 
 async def _manage_unknown_handler(args: dict[str, Any]) -> dict[str, Any]:
     return await _manage_writer_handler(manage_unknown, "manage_unknown", args)
+
+
+async def _manage_research_handler(args: dict[str, Any]) -> dict[str, Any]:
+    return await _manage_writer_handler(manage_research, "manage_research", args)
+
+
+async def _manage_conflict_handler(args: dict[str, Any]) -> dict[str, Any]:
+    return await _manage_writer_handler(manage_conflict, "manage_conflict", args)
 
 
 MANAGE_REQUIREMENT_SPEC = ToolSpec(
@@ -1253,10 +1523,14 @@ MANAGE_ASSUMPTION_SPEC = ToolSpec(
         "impact": "str, one of HIGH|MEDIUM|LOW — required for create",
         "confidence": "str, one of HIGH|MEDIUM|LOW — required for create",
         "confidence_basis": "str, non-empty justification for confidence — required for create",
+        "provisional": "bool, true when this assumption stands in pending an *external* party's confirmation "
+        "(a client, not the user) rather than the user's own — optional for create, defaults to false. "
+        "Bug #13 (blockers.md): this field was handled by the writer but never exposed here, so no caller "
+        "could ever actually set it through this tool.",
         "change_reason": "str, why this write happened",
     },
     required=["operation", "project_slug"],
-    optional=["entity_id", "statement", "reason", "impact", "confidence", "confidence_basis", "change_reason"],
+    optional=["entity_id", "statement", "reason", "impact", "confidence", "confidence_basis", "provisional", "change_reason"],
     formats={
         "operation": "one of: create, confirm, reject, modify, supersede",
         "impact": "one of: HIGH, MEDIUM, LOW",
@@ -1384,7 +1658,107 @@ MANAGE_UNKNOWN_SPEC = ToolSpec(
     },
 )
 
+MANAGE_RESEARCH_SPEC = ToolSpec(
+    name="manage_research",
+    purpose="Record, link to a Decision, or supersede a ResearchFinding — the only tool that ever writes RES-nnn entities.",
+    inputs={
+        "operation": "str, one of create|link_decision|supersede",
+        "project_slug": "str, the project's slug",
+        "entity_id": "str, RES-nnn — required for link_decision/supersede",
+        "question": "str, the question researched — required for create",
+        "method": "str, how it was researched (e.g. web search, ledger context) — required for create",
+        "summary": "str, the finding itself — required for create",
+        "confidence": "str, one of HIGH|MEDIUM|LOW — required for create",
+        "confidence_basis": "str, non-empty justification for confidence — required for create",
+        "options_found": "list[str], the options this research turned up — optional for create",
+        "sources": "list[str], citations/links — optional for create",
+        "stale_after_days": "int, defaults to 90 — optional for create",
+        "feeds_decision": "str, DEC-nnn this finding resolves — required for link_decision, unavailable at create time since the Decision isn't landed yet",
+        "change_reason": "str, why this write happened",
+    },
+    required=["operation", "project_slug"],
+    optional=[
+        "entity_id", "question", "method", "summary", "confidence", "confidence_basis",
+        "options_found", "sources", "stale_after_days", "feeds_decision", "change_reason",
+    ],
+    formats={
+        "operation": "one of: create, link_decision, supersede",
+        "confidence": "one of: HIGH, MEDIUM, LOW",
+    },
+    returns="ToolResult with data={entity_id, event_id, replayed} on success.",
+    examples=[
+        'manage_research(operation="create", project_slug="invoice-tracker", question="Which database scales better here?", method="web search", summary="Postgres handles this write pattern comfortably at this scale; a document store would not need to.", options_found=["Postgres", "MongoDB"], confidence="MEDIUM", confidence_basis="two independent benchmarks agree")',
+        'manage_research(operation="link_decision", project_slug="invoice-tracker", entity_id="RES-001", feeds_decision="DEC-004")',
+    ],
+    edge_cases=[
+        "create with no confidence_basis is rejected as VALIDATION — a bare confidence level is not enough",
+        "supersede on an already-REPLACED finding is rejected — REPLACED is terminal",
+    ],
+    limitations=[
+        "not granted to the Discovery Agent — only the Guidance and Research subagents may call this (ppa/agents/registry.py::GRANTS)",
+    ],
+    use_when=[
+        "the Guidance or Research subagent has an actual finding to persist",
+        "a Decision has just been landed and the finding that led to it needs feeds_decision set (link_decision)",
+    ],
+    do_not_use_when=[
+        "the agent is Discovery itself — Discovery hands off via request_guidance instead of researching inline",
+        "the agent only wants to read prior findings — use read_planning_state instead",
+    ],
+    related_tools={
+        "manage_decision": "the DEC-nnn a ResearchFinding's own feeds_decision points at",
+        "read_planning_state": "reads ResearchFinding entities; never writes them",
+    },
+)
+
+MANAGE_CONFLICT_SPEC = ToolSpec(
+    name="manage_conflict",
+    purpose="Record the model's own verdict on a conflict candidate — the only tool that writes conflict.adjudicated events.",
+    inputs={
+        "operation": "str, adjudicate is the only one",
+        "project_slug": "str, the project's slug",
+        "subject_id": "str, the existing entity id the candidate compared against (e.g. a CONFIRMED REQ-nnn)",
+        "candidate_id": "str, the id of the new/changed entity that triggered the comparison (e.g. an ANS-nnn or a new REQ-nnn)",
+        "verdict": "str, one of contradiction|refinement|unrelated",
+        "resolved": "bool, true once subject_id has actually been superseded as a result of this verdict, false if only surfaced so far",
+        "explanation": "str, why — shown to the user when surfacing the conflict",
+        "change_reason": "str, why this write happened",
+    },
+    required=["operation", "project_slug", "subject_id", "candidate_id", "verdict", "resolved"],
+    optional=["explanation", "change_reason"],
+    formats={
+        "operation": "one of: adjudicate",
+        "verdict": "one of: contradiction, refinement, unrelated",
+    },
+    returns="ToolResult with data={entity_id: None, event_id, replayed} on success.",
+    examples=[
+        'manage_conflict(operation="adjudicate", project_slug="invoice-tracker", subject_id="REQ-002", candidate_id="ANS-014", verdict="contradiction", resolved=False, explanation="REQ-002 says internal tool, ~20 users; the new answer describes a public launch")',
+        'manage_conflict(operation="adjudicate", project_slug="invoice-tracker", subject_id="REQ-002", candidate_id="ANS-014", verdict="contradiction", resolved=True, explanation="superseded REQ-002 with REQ-009 after the user confirmed the public launch")',
+    ],
+    edge_cases=[
+        "an invalid verdict is rejected as VALIDATION, naming the three legal values",
+        "adjudicate never mutates subject_id itself — pair a resolved=True call with a separate manage_requirement/manage_assumption/manage_decision(supersede) call",
+    ],
+    limitations=[
+        "does not itself supersede anything — this tool only records the verdict",
+    ],
+    use_when=[
+        "ppa.engines.conflicts.find_conflict_candidates found a real candidate worth a verdict",
+        "a previously-surfaced (resolved=False) contradiction has now actually been superseded — record a second adjudicate call with resolved=True",
+    ],
+    do_not_use_when=[
+        "no candidate was found at all — nothing to adjudicate",
+        "the agent only wants to read prior adjudications — use read_planning_state's history scope instead",
+    ],
+    related_tools={
+        "manage_requirement": "supersede is the actual resolution once verdict=contradiction, resolved=True",
+        "read_planning_state": "reads conflict.adjudicated events via scope=history; manage_conflict never reads, only writes",
+    },
+)
+
 register(MANAGE_REQUIREMENT_SPEC, _manage_requirement_handler, owner_agents=["discovery"])
 register(MANAGE_ASSUMPTION_SPEC, _manage_assumption_handler, owner_agents=["discovery"])
 register(MANAGE_DECISION_SPEC, _manage_decision_handler, owner_agents=["discovery"])
 register(MANAGE_UNKNOWN_SPEC, _manage_unknown_handler, owner_agents=["discovery"])
+register(MANAGE_RESEARCH_SPEC, _manage_research_handler, owner_agents=["guidance", "research"])
+register(MANAGE_CONFLICT_SPEC, _manage_conflict_handler, owner_agents=["discovery"])

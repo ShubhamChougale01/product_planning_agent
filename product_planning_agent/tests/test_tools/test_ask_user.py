@@ -271,3 +271,28 @@ def test_ask_user_toolspec_is_registered_and_complete():
     assert len(registered.spec.use_when) >= 2
     assert len(registered.spec.do_not_use_when) >= 2
     assert "discovery" in registered.owner_agents
+
+
+# ---------------------------------------------------------------------------
+# Bug #10 (blockers.md): the MCP boundary declares every field `str` to the
+# SDK, so a real model call sends `questions` as a JSON-encoded string, not
+# a real `list[dict]`. The handler must parse it back.
+# ---------------------------------------------------------------------------
+
+
+def test_handler_coerces_questions_from_a_json_encoded_string(tmp_path):
+    import asyncio
+
+    from ppa.tools.interaction import _ask_user_handler
+
+    project = _make_project(tmp_path)
+    response = asyncio.run(
+        _ask_user_handler(
+            {
+                "project_slug": project.slug,
+                "projects_root": str(tmp_path / "projects"),
+                "questions": '[{"text": "Which payment processor?", "why_asked": "determines integration scope"}]',
+            }
+        )
+    )
+    assert response["is_error"] is False, response

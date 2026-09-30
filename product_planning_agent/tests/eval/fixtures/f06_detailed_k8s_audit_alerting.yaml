@@ -1,0 +1,19 @@
+name: f06_detailed_k8s_audit_alerting
+seed_requirement: >
+  Build an internal service that ingests our Kubernetes cluster's audit
+  logs, flags any pod that reads a secret it's never read before, and
+  posts an alert to our on-call Slack channel within 60 seconds.
+profile:
+  role: engineer
+  technical_depth: high
+  domain_familiarity: high
+axes:
+  detail: detailed
+  market: b2b
+  system: greenfield
+  author: engineer
+  ownership: internal
+notes: >
+  An engineer's own detailed spec for an internal tool, greenfield build —
+  the highest-technical-depth fixture in the set, deliberately full of NFR
+  content (a hard latency bound) up front.

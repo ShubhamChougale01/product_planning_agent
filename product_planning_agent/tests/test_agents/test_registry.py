@@ -95,16 +95,6 @@ def test_delivery_agent_invoke_returns_structured_not_implemented(tmp_path):
     assert "Delivery is v3" in result.summary
 
 
-def test_discovery_guidance_research_invoke_also_return_structured_not_implemented(tmp_path):
-    """Real turn behavior lands in T23/T28/T29 — until then, every agent
-    (not just the v2/v3 stubs) returns a structured result, never raises."""
-
-    for agent_id in ("discovery", "guidance", "research"):
-        result = AGENTS[agent_id].invoke(_ctx(agent_id, tmp_path))
-        assert result.status == AgentResultStatus.NOT_IMPLEMENTED
-        assert result.summary.strip()
-
-
 def test_orchestrator_invoke_returns_structured_not_implemented(tmp_path):
     result = AGENTS["orchestrator"].invoke(_ctx("orchestrator", tmp_path))
     assert result.status == AgentResultStatus.NOT_IMPLEMENTED

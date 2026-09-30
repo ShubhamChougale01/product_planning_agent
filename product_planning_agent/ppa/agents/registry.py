@@ -41,6 +41,7 @@ GRANTS: dict[str, frozenset[str]] = {
             "manage_unknown",
             "ask_user",
             "request_guidance",
+            "manage_conflict",
         }
     ),
     "guidance": frozenset({"read_planning_state", "manage_research"}),

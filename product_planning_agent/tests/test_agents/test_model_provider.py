@@ -94,3 +94,20 @@ def test_options_carry_the_grant_and_the_model():
     options = provider.options(system_prompt="you are a test", allowed_tools=["read_planning_state"])
     assert options.model == provider.model
     assert options.allowed_tools == ["read_planning_state"]
+
+
+def test_options_disable_the_built_in_toolset_by_default():
+    """Bug #6 (`blockers.md`): `allowed_tools` only auto-approves a subset of
+    whatever `tools` exposes — it was never a boundary against the full
+    built-in Claude Code toolset (Bash, Read, Write, ...) existing at all.
+    Verified live: without `tools=[]`, a real turn read `blockers.md` and
+    ran `git log` directly, entirely outside the ledger and the permission
+    gate."""
+
+    options = ModelProvider().options(system_prompt="you are a test", allowed_tools=["read_planning_state"])
+    assert options.tools == []
+
+
+def test_options_tools_override_is_still_possible_via_extra():
+    options = ModelProvider().options(system_prompt="x", tools=["Read"])
+    assert options.tools == ["Read"]

@@ -1,0 +1,20 @@
+name: f04_detailed_logistics_portal_client
+seed_requirement: >
+  Our client (a 200-person logistics company) wants a B2B portal so their
+  dispatchers can see real-time truck locations pulled from their existing
+  fleet-tracking API, approve route changes, and export daily mileage
+  reports for billing.
+profile:
+  role: product
+  technical_depth: medium
+  domain_familiarity: medium
+axes:
+  detail: detailed
+  market: b2b
+  system: legacy
+  author: product
+  ownership: client
+notes: >
+  Detailed and specific, but still a client project integrating an
+  existing third-party API — tests whether being detailed up front reduces
+  how much T27 external-questionnaire routing is actually needed.

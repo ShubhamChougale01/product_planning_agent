@@ -1,0 +1,16 @@
+name: f05_vague_reading_tracker
+seed_requirement: "Something fun for people to track their reading habits."
+profile:
+  role: product
+  technical_depth: low
+  domain_familiarity: medium
+axes:
+  detail: vague
+  market: consumer
+  system: greenfield
+  author: product
+  ownership: internal
+notes: >
+  Vague but consumer/product-authored (unlike f01, which is vague but
+  b2b/engineer) — covers the "vague" end paired with the opposite market
+  and author values.

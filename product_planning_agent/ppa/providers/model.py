@@ -162,9 +162,25 @@ class ModelProvider:
 
         ``allowed_tools`` is the agent's registry grant. It is a hint to the model,
         not a security boundary — the grant is enforced again at dispatch (§2.18).
+
+        **``tools=[]`` by default — bug #6, ``blockers.md``.** ``ClaudeAgentOptions.
+        tools`` (distinct from ``allowed_tools``) is the *base* toolset the SDK
+        exposes at all; left unset it defaults to the full Claude Code preset —
+        ``Bash``, ``Read``, ``Write``, ``Edit`` and everything else the CLI ships
+        with, entirely independent of whatever this codebase's own MCP tools and
+        permission gate say. ``allowed_tools`` only controls which of *that*
+        toolset auto-approves without a permission prompt; it was never a
+        boundary against the built-in tools existing in the first place. Every
+        PPA agent must reach the ledger exclusively through its own granted MCP
+        tools — verified live: without this, a real turn was observed reading
+        ``blockers.md`` and inspecting ``git log`` directly, entirely outside
+        the registry, the permission gate, and the audit trail. A caller that
+        genuinely needs the built-in toolset can still pass ``tools=`` through
+        ``**extra`` to override this default.
         """
         kwargs: dict[str, Any] = {
             "model": self.model,
+            "tools": [],
             "allowed_tools": allowed_tools or [],
             "max_turns": max_turns or self.cfg.max_turns,
             "permission_mode": self.cfg.permission_mode,

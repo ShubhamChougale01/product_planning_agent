@@ -154,3 +154,28 @@ def snapshot() -> dict[str, RegisteredTool]:
 def restore(saved: dict[str, RegisteredTool]) -> None:
     _REGISTRY.clear()
     _REGISTRY.update(saved)
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap — bug #8 (`blockers.md`). Every real tool module (T16-T18) calls
+# `register()` at its own module import time, per this file's own docstring
+# above — but nothing in production code ever imported those modules, so in
+# a real process (the `ppa` CLI, or any live agent turn) `_REGISTRY` stayed
+# permanently empty: every agent's tool grant resolved to zero actual
+# registered tools. This was masked entirely by test collection order —
+# pytest imports every test module (several of which import a tool module
+# directly) before running anything, so the suite never observed the gap.
+# Found live: a real Discovery turn's in-process MCP server had zero tools
+# on it, and every `ToolSearch` for `manage_requirement` correctly reported
+# "no matching deferred tools found" because there was nothing to find.
+#
+# Imported at the bottom, after `register`/`get`/`_REGISTRY` already exist,
+# mirroring `ppa/agents/registry.py`'s own identical fix for the same class
+# of circular-import shape: each tool module imports `register` from this
+# one, so this module must finish defining it before importing them back.
+# ---------------------------------------------------------------------------
+
+import ppa.tools.delivery_tools  # noqa: E402,F401
+import ppa.tools.discovery_tools  # noqa: E402,F401
+import ppa.tools.interaction  # noqa: E402,F401
+import ppa.tools.planning_tools  # noqa: E402,F401

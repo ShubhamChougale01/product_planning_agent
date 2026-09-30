@@ -84,11 +84,29 @@ class EventType(str, Enum):
 
     RESEARCH_RECORDED = "research.recorded"
     RESEARCH_REPLACED = "research.replaced"
+    RESEARCH_LINKED_TO_DECISION = "research.linked_to_decision"
+    """T28: a ResearchFinding's `feeds_decision` is set *after* it is
+    recorded — DESIGN.md's own sequence lands the Decision only once
+    Guidance's research is already done (§3.5 step 7), so nothing can set
+    this field at create time. Not a status transition (`ACTIVE` stays
+    `ACTIVE`); see `manage_research(operation="link_decision")`."""
 
     COVERAGE_RECOMPUTED = "coverage.recomputed"
 
     APPROVAL_GRANTED = "approval.granted"
     APPROVAL_REVOKED = "approval.revoked"
+
+    REVIEW_APPROVED = "review.approved"
+    """T30: REVIEW mode's own explicit user-approval event — readiness gate
+    condition 7's `review_approved` (decision #19) folds from this. Not
+    tied to any single entity (`entity_id=None`); `after` carries which
+    areas the user confirmed as part of approving."""
+
+    CONFLICT_ADJUDICATED = "conflict.adjudicated"
+    """T30: the model's own verdict on one `ppa.engines.conflicts.Candidate`
+    (contradiction/refinement/unrelated) — readiness gate condition 6's
+    `unresolved_conflicts` (decision #19) folds from every adjudication
+    still verdict="contradiction" and not yet resolved by a supersede."""
 
     TXN_BEGIN = "txn.begin"
     TXN_COMMIT = "txn.commit"

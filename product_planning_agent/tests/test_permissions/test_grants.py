@@ -75,6 +75,7 @@ _EXPECTED_GRANTS = {
     "discovery": {
         "read_planning_state", "manage_requirement", "manage_assumption",
         "manage_decision", "manage_unknown", "ask_user", "request_guidance",
+        "manage_conflict",
     },
     "guidance": {"read_planning_state", "manage_research"},
     "research": {"read_planning_state", "manage_research"},

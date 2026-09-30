@@ -1,0 +1,23 @@
+name: f08_detailed_loyalty_app_client
+seed_requirement: >
+  A regional grocery chain (our client) wants a loyalty app that reads
+  point balances from their 15-year-old mainframe POS system via the
+  nightly batch file it already exports, lets shoppers redeem points
+  in-store by scanning a QR code, and never double-redeems the same code
+  twice.
+profile:
+  role: engineer
+  technical_depth: high
+  domain_familiarity: low
+axes:
+  detail: detailed
+  market: consumer
+  system: legacy
+  author: engineer
+  ownership: client
+notes: >
+  Detailed, consumer-facing, legacy-integrating, AND a client project all
+  at once — covers "client" paired with consumer/engineer, the one
+  combination f03/f04 don't. The idempotency constraint ("never
+  double-redeems") is a real NFR/constraint buried in prose, not a labeled
+  field — tests whether it survives into a real Requirement.
