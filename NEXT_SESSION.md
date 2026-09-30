@@ -1,75 +1,77 @@
 # Next session — pick up here
 
 **Branch:** `blockers-add-fixed-by-column`, tracking `origin/blockers-add-fixed-by-column`. Still
-the one live line of development — it absorbed T07–T30, and now T31–T33. Phase E (Product surface)
-is complete; Phase F (Resilience and validation) is one task in (T32 of 4).
+the one live line of development. Phase F (Resilience and validation) is nearly done — T34 just
+landed, leaving **T35 as the final task on the whole 35-task board.**
 
-**Baseline:** full suite — 884 passed, 1 skipped, default `pytest` run (confirmed by re-running the
-whole suite fresh at the end of this session, dot-count verified since the summary line didn't
-survive output capture that run — don't read anything into that beyond a capture quirk). Separately, `pytest -m live_model` — T31–T33 added their own live proofs on top of the existing 9:
-T31's `chat` end-to-end proof used a fixture agent (no live call needed, matching its own "Needs a
-model? No"); T33's `tests/eval/test_matrix.py` ran 8 real, multi-round sessions (6 personas +
-1 targeted defers_to_client run + 1 ten-fixture breakage survey), all passing after one in-flight
-correction (decision #41). Re-run the full suite once at the start of a new session before trusting
-any of this — it was last confirmed clean at the end of this session, not verified again since.
+**Baseline:** full default suite (excludes `live_model`) — clean, exit 0, re-confirmed at the end of
+this session after every production-code change T34 made. `pytest -m live_model` — every case run
+individually this session passed (see below); the one combined `--live --matrix` invocation hit the
+Claude Code subscription's own rolling usage limit mid-run once (not a code defect — see Decision #4
+below), cleared on its own, and a full re-run afterward passed 18/18. Re-run the full suite once at
+the start of a new session before trusting any of this.
 
-**Current task:** T31 through T33 are done and committed. Next up: T34 —
-`tasks/t34_eval_suite_and_baseline.md` (Phase F · Resilience and validation). Not yet opened or
-started this session. Read that file first; it has its own Done-when checklist to work through.
-**Decision #4** ("which model tier for eval runs") is explicitly T34's own to resolve — don't guess
-at it before then.
+**Current task:** T34 is done and committed (`2fc8578`, hash follow-up in `7345b7d`). Next up: **T35
+— `tasks/t35_hardening_and_documentation.md`** (Phase F · Resilience and validation, the last task
+on the board). Not yet opened or started this session. Read that file first; it has its own
+Done-when checklist. One of its own boxes ("all three open decisions from §6.7 are resolved and
+recorded") is **already true** as of T34 — `tasks/readme.md`'s own "Open decisions" table shows all
+three resolved (#1, #2, #3), so T35 doesn't need to do anything there beyond confirming it, not
+resolving anything new.
 
-**Unresolved blockers:** none. `blockers.md` §1 (Blockers) and §3 (Bugs) are both empty.
+**Unresolved blockers:** none. `blockers.md` §1 (Blockers), §2 (Decisions) and §3 (Bugs) are all
+empty — the last three pending decisions (#4, #33, #34) were resolved this session and moved to §4.
 
-**Decisions pending confirmation (not blockers — safe to keep building on):**
-- **#33** (T25) — three Done-when boxes describing session-level/multi-round CLARIFY behavior
-  (research routed at least once per session, round-4 assumptions offer, three-consecutive-
-  `dont_know` triggering assumption-heavy mode) — **still resolves at T34**. T33 built the harness
-  that makes this checkable (`tests/eval/harness.py::run_session`, real multi-round sessions) but
-  its own tests never targeted these three specific conditions — don't assume they're proven just
-  because multi-round sessions now run cleanly.
-- **#34** (T26) — the `always_idk` persona's own live multi-round proof — **still resolves at T34**
-  for the same reason: T33's `always_idk` run completed 4 real rounds without crashing, which is
-  *not* the same claim as "the anti-loop guard's forced escalation actually fired." Check for a real
-  escalation/routing event, don't just check for survival.
-- **#4** — which model tier for eval runs — **resolves at T34**. Also worth noting: `PPA_MODEL_
-  TIER` is not actually wired into real Discovery turns yet (`ppa.agents.turn._run_one_sdk_turn`
-  calls `ModelProvider()` with no config, never `.from_config()`) — every live call this build has
-  ever made, including all of T33's, ran on the default tier (`primary` / Sonnet-5). If T34 wants
-  a cheaper tier for a large eval run, that wiring has to be added first.
+**What T34 actually built** (read `completed_tasks/t34_eval_suite_and_baseline.md`'s own Build
+record for full reasoning — this is just the map):
 
-**What T31–T33 actually built** (read each task's own Build record in `completed_tasks/` for full
-reasoning — this is just the map):
-- **T31** — `ppa/render/status_board.py` (the whole status board, drawn purely from already-proven
-  engines — coverage, readiness, open_items, dates — plus a plain fold over `events.ndjson` for
-  session/round/`DiscoveryMode`). Real CLI commands: `chat` (the main loop), `status --items`,
-  `history`, `force-ready`, `why` (now with provenance from `audit.ndjson`). **Decision #39**: six
-  judgment calls, including adding `ppa.tools.interaction.answer_pending_question` (the "caller
-  answers a PENDING question later" half `ask_user`'s own docstring always named as T31's job).
-- **T32** — `ppa/recovery/{transaction,retry}.py` + `ppa/orchestrator/escalation.py`. Transaction
-  rollback was already true by construction (T07/T21); this task added the independent checkpoint/
-  verify proof rather than a second mechanism. `retry.py` gives bounded, budget-of-3, TRANSIENT-only
-  retry with the task's own `PARTIAL_FAILURE` JSON shape. `escalation.py` structurally enforces
-  "every escalation ends in a concrete question" via required Pydantic fields. **Decision #40**:
-  "local recovery first" is proven generically (a stand-in function), not by rewiring T29's real
-  research subagent — out of this task's own file scope.
-- **T33** — `tests/eval/fixtures/*.yaml` (ten fixtures across five axes, two flagged adversarial),
-  `tests/eval/personas.py` (six deterministic personas), `tests/eval/harness.py` (`run_session`,
-  drives one real multi-round Discovery session per fixture/persona pair — launchable as
-  `python -m tests.eval.harness`). **Decision #41**: a real finding, corrected in-flight —
-  `defers_to_client`'s first live run used an internal-only fixture and produced nothing external;
-  correct agent behavior given no client existed in that project's context, not a bug. Fixed by
-  switching to a fixture that actually establishes a client.
+- **A real bug fixed before anything else could be trusted.** Five real model call sites
+  (`ppa/agents/turn.py`, `ppa/agents/modes/{change,review}.py`, `ppa/agents/subagents/
+  {guidance,research}.py`) all constructed a bare `ModelProvider()` instead of `ModelProvider.
+  from_config(...)`, silently discarding `config/model.yaml`/`PPA_MODEL_TIER` on every real turn
+  since T21. Fixed — `ppa/providers/model.py` gained `DEFAULT_CONFIG_PATH`, all five now call
+  `ModelProvider.from_config(DEFAULT_CONFIG_PATH)`.
+- **§2.17 invariant** — `tests/eval/test_llm_surface_invariant.py`, a static seam scan (greps for
+  `.client(` call sites, asserts the set is exactly those same five, each declaring its own
+  `LLM_SURFACE`). No live call needed for this test itself.
+- **Eighteen S12.2 cases** — `tests/eval/cases/case_01..18_*.py`. Fourteen deterministic (no model
+  call — proven directly against `ppa.tools.dispatch`, `ppa.recovery.retry`,
+  `ppa.orchestrator.escalation`, `ppa.tools.approval`, `ppa.validation.*`, `ppa.engines.{impact,
+  coverage}`). Four live (`case_01`, `03`, `13`, `14`, marked `live_model`) — each needed real
+  correction after its first live attempt; see the Build record for exactly what each run showed and
+  why the fix was made (case 3 in particular found that "non-critical" and "silently assumable" are
+  different things — worth reading before touching `mode_clarify.md` again).
+- **`ppa/agents/prompts/mode_clarify.md`** gained real, previously-missing guidance for
+  `answer_kind="decide_later"` — nothing told a turn how to react to one before this session.
+- **`tests/eval/rubric.py` + `tests/eval/scorecard.py`** — the metrics model and the "one command"
+  (`python -m tests.eval.scorecard [--live] [--matrix ...] [--save PATH] [--compare PATH]`).
+- **`tests/eval/test_decisions_33_34_clarify_session_level.py`** — one real 6-round `always_idk`
+  session (against `f06_detailed_k8s_audit_alerting`) that closed blockers.md decisions #33 and #34
+  in a single run, on the first live attempt: research routed at least once, the round-4 assumptions
+  offer fired, the fatigue switch held from early on, and the anti-loop guard's forced escalation
+  actually fired (a blocking `Unknown(route="GUIDANCE")`, no question ever repeated verbatim).
+- **Decision #4 (model tier)** — `scripts/probe_model_tier.py` + `docs/decisions/model_tier.md`.
+  Resolved: **`primary`** (Sonnet 5). `cheap` (Haiku 4.5) failed the established INTAKE quality bar
+  and wasn't even faster; `deep` (Opus 5) passed but cost ~2.5x more for no measured benefit. Single
+  representative probe (n=1 per tier) — re-probe before assuming this generalizes to a much larger
+  run.
+- **`tests/eval/baseline.json`** — recorded from all eighteen cases plus **one** matrix session
+  (`f01_vague_internal_ops_tool` × `knows_their_stuff`), not the full sixty-combination grid, for the
+  same wall-clock reasons T33's own handoff note already named (a single multi-round live session
+  can run 10+ minutes; the full matrix would run for hours). The scorecard command's `--matrix` flag
+  defaults to the full grid if no `--fixture`/`--persona` is named, so the *capability* exists even
+  though this baseline didn't exercise all sixty.
 
-**A note on live flakiness, for whoever picks this up next:** the exact same non-determinism kept
-recurring on `pytest -m live_model`'s *combined* run through T27/T28/T30 (never on an isolated
-re-run of just the failing test) — see `blockers.md`'s own decisions/bugs for specifics. Treat a
-lone failure in a *combined* `live_model` run as suspect-flaky first — re-run that one test alone
-before concluding a real regression. T33's own multi-round sessions are individually much longer
-(a single 5-round session took ~13.5 minutes; the full 8-test matrix took ~1h31m) — budget real
-wall-clock time before running `tests/eval/test_matrix.py` again, and prefer running one test at a
-time (`pytest -m live_model tests/eval/test_matrix.py::test_name`) over the whole file when only
-one result is in question.
+**A note on live-model wall-clock and the subscription usage limit, for whoever picks this up
+next:** a single multi-round session (5-6 rounds) takes on the order of 10-15 minutes; running
+several live cases plus a session back-to-back in one sitting can hit the Claude Code subscription's
+own rolling usage limit (this session hit it once, message: "You've hit your individual spend
+limit... your session limit resets \<time\>"). It is not a code or prompt defect — waiting past the
+stated reset time and retrying is enough (confirmed this session: an individual case that failed
+with the limit message passed cleanly moments after the reset). Budget for this the same way you'd
+budget for wall-clock: don't chain many live invocations in one sitting without slack, and if a live
+case fails with that literal message in its own output, that is the tell — re-run it, don't debug it
+as a regression.
 
 **How to resume:**
 1. Confirm you're on `blockers-add-fixed-by-column` (`git status`) and it's up to date with
@@ -78,6 +80,6 @@ one result is in question.
    worktree needs `python -m venv .venv && .venv/Scripts/python.exe -m pip install -e ".[dev]"`
    before anything will run (from inside `product_planning_agent/`).
 3. Run the full suite to reconfirm the baseline before touching anything.
-4. Open `tasks/t34_eval_suite_and_baseline.md` and start there.
-5. Delete this file (or update it) once T34 is committed — it's a handoff note for the next
+4. Open `tasks/t35_hardening_and_documentation.md` and start there — the last task on the board.
+5. Delete this file (or update it) once T35 is committed — it's a handoff note for the next
    session, not a permanent record like `blockers.md`.
