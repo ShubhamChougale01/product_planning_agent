@@ -1,71 +1,75 @@
 # Next session — pick up here
 
 **Branch:** `blockers-add-fixed-by-column`, tracking `origin/blockers-add-fixed-by-column`. Still
-the one live line of development — it absorbed T07–T15, the blockers.md "Fixed by" column, T16–T20,
-T21–T25, and now T26–T30. Phase D (Discovery Agent — the intelligence layer) is fully complete.
+the one live line of development — it absorbed T07–T30, and now T31–T33. Phase E (Product surface)
+is complete; Phase F (Resilience and validation) is one task in (T32 of 4).
 
-**Baseline:** full suite — 829/829 passing, 1 skipped, default `pytest` run. Separately,
-`pytest -m live_model` — 9 passing (T23's real-turn proof, T24's intake eval, T25's clarify eval,
-T26's dont-know eval, T27's external-input eval, T28's guidance eval, T29's research eval, T30's
-review eval, T30's change eval). All reconfirmed clean at the end of this session — one flaky
-pre-existing test (`test_clarify.py`/`test_research.py`, model non-determinism, not code) recurred
-across multiple runs this session; always passed clean on an isolated retry. See "A note on live
-flakiness" below.
+**Baseline:** full suite — 884 passed, 1 skipped, default `pytest` run (confirmed by re-running the
+whole suite fresh at the end of this session, dot-count verified since the summary line didn't
+survive output capture that run — don't read anything into that beyond a capture quirk). Separately, `pytest -m live_model` — T31–T33 added their own live proofs on top of the existing 9:
+T31's `chat` end-to-end proof used a fixture agent (no live call needed, matching its own "Needs a
+model? No"); T33's `tests/eval/test_matrix.py` ran 8 real, multi-round sessions (6 personas +
+1 targeted defers_to_client run + 1 ten-fixture breakage survey), all passing after one in-flight
+correction (decision #41). Re-run the full suite once at the start of a new session before trusting
+any of this — it was last confirmed clean at the end of this session, not verified again since.
 
-**Current task:** T26 through T30 are done and committed. Next up: T31 —
-`tasks/t31_cli_and_status_board.md` (Phase E · Product surface). Not yet opened or started this
-session. Read that file first; it has its own Done-when checklist to work through.
+**Current task:** T31 through T33 are done and committed. Next up: T34 —
+`tasks/t34_eval_suite_and_baseline.md` (Phase F · Resilience and validation). Not yet opened or
+started this session. Read that file first; it has its own Done-when checklist to work through.
+**Decision #4** ("which model tier for eval runs") is explicitly T34's own to resolve — don't guess
+at it before then.
 
 **Unresolved blockers:** none. `blockers.md` §1 (Blockers) and §3 (Bugs) are both empty.
 
 **Decisions pending confirmation (not blockers — safe to keep building on):**
-- **#33** (T25) — three Done-when boxes describing session-level/multi-round CLARIFY behavior,
-  proven at the engine layer only — **resolves at T33/T34**.
-- **#34** (T26) — the `always_idk` persona's own multi-round proof, same shape as #33 — **resolves
-  at T33/T34**.
-- **#4** — which model tier for eval runs — **resolves at T34**.
+- **#33** (T25) — three Done-when boxes describing session-level/multi-round CLARIFY behavior
+  (research routed at least once per session, round-4 assumptions offer, three-consecutive-
+  `dont_know` triggering assumption-heavy mode) — **still resolves at T34**. T33 built the harness
+  that makes this checkable (`tests/eval/harness.py::run_session`, real multi-round sessions) but
+  its own tests never targeted these three specific conditions — don't assume they're proven just
+  because multi-round sessions now run cleanly.
+- **#34** (T26) — the `always_idk` persona's own live multi-round proof — **still resolves at T34**
+  for the same reason: T33's `always_idk` run completed 4 real rounds without crashing, which is
+  *not* the same claim as "the anti-loop guard's forced escalation actually fired." Check for a real
+  escalation/routing event, don't just check for survival.
+- **#4** — which model tier for eval runs — **resolves at T34**. Also worth noting: `PPA_MODEL_
+  TIER` is not actually wired into real Discovery turns yet (`ppa.agents.turn._run_one_sdk_turn`
+  calls `ModelProvider()` with no config, never `.from_config()`) — every live call this build has
+  ever made, including all of T33's, ran on the default tier (`primary` / Sonnet-5). If T34 wants
+  a cheaper tier for a large eval run, that wiring has to be added first.
 
-Decision #19 (T10's three not-yet-buildable readiness-gate inputs) is now **resolved** — T30 wired
-all three to real event-sourced state, exactly as T10's own row predicted.
-
-**What T26–T30 actually built** (read each task's own Build record in `completed_tasks/` for full
+**What T31–T33 actually built** (read each task's own Build record in `completed_tasks/` for full
 reasoning — this is just the map):
-- **T26** — `ppa/engines/dont_know_classifier.py` (the seven kinds, the routing table as code, the
-  anti-loop guard's arithmetic) + `ppa/agents/modes/dont_know.py` (shape contract). No new MCP
-  tool — every route reachable with `ask_user`/`manage_assumption`/`manage_decision`/
-  `manage_unknown`. **Bug #13**: `manage_assumption`'s `ToolSpec` never exposed `provisional` to
-  the model.
-- **T27** — `ppa/agents/modes/external.py` + `ppa/render/client_questions.py` (`ppa client-
-  questions`, a real CLI command). **Decision #35**: `needs_external_input` became a three-call
-  sequence (`manage_unknown(record, owner_type=external)` + `manage_assumption(create,
-  provisional=True)` + `manage_unknown(convert)`) so the questionnaire has question/why/blocking/
-  area, not just a bare assumption.
-- **T28** — `ppa/agents/subagents/guidance.py` (real `GuidanceBrief`, its own isolated SDK turn,
-  own grant) + `ppa/render/guidance_card.py` (`ppa why <dec-id>`, a real CLI command). **Decision
-  #36**: `manage_research` (create/link_decision/supersede) built from scratch — nothing before
-  this task ever wrote a real `RES-nnn`.
-- **T29** — `ppa/providers/research.py` (the three-state degradation seam) + `ppa/agents/
-  subagents/research.py` (`run_research_session` batches the whole `RESEARCH_REQUIRED` queue in
-  one turn). **Decision #37**: `available()` gates before any model call; the FAILED message is
-  built directly, never through `provider.research()` (deliberately unimplemented on the real
-  provider).
-- **T30** — `ppa/agents/modes/review.py` (REVIEW's grant widened for `manage_assumption`;
-  `grant_review_approval` is a plain function, never a tool, mirroring T18's own approval rule) +
-  `ppa/agents/modes/change.py` (`run_change_session`: detect via T11's `find_conflict_candidates`,
-  adjudicate via the new `manage_conflict` tool, supersede+create, `analyze_impact`, rewind
-  `CHANGE_REQUESTED -> DISCOVERY`). **Decision #38**: five related judgment calls, including
-  "change handling is not a `DiscoveryMode`" (it's the *global* workflow state, a different level)
-  — it runs against `agent_id="discovery"`'s full grant directly, same shape T28/T29's subagents
-  use for a different reason.
+- **T31** — `ppa/render/status_board.py` (the whole status board, drawn purely from already-proven
+  engines — coverage, readiness, open_items, dates — plus a plain fold over `events.ndjson` for
+  session/round/`DiscoveryMode`). Real CLI commands: `chat` (the main loop), `status --items`,
+  `history`, `force-ready`, `why` (now with provenance from `audit.ndjson`). **Decision #39**: six
+  judgment calls, including adding `ppa.tools.interaction.answer_pending_question` (the "caller
+  answers a PENDING question later" half `ask_user`'s own docstring always named as T31's job).
+- **T32** — `ppa/recovery/{transaction,retry}.py` + `ppa/orchestrator/escalation.py`. Transaction
+  rollback was already true by construction (T07/T21); this task added the independent checkpoint/
+  verify proof rather than a second mechanism. `retry.py` gives bounded, budget-of-3, TRANSIENT-only
+  retry with the task's own `PARTIAL_FAILURE` JSON shape. `escalation.py` structurally enforces
+  "every escalation ends in a concrete question" via required Pydantic fields. **Decision #40**:
+  "local recovery first" is proven generically (a stand-in function), not by rewiring T29's real
+  research subagent — out of this task's own file scope.
+- **T33** — `tests/eval/fixtures/*.yaml` (ten fixtures across five axes, two flagged adversarial),
+  `tests/eval/personas.py` (six deterministic personas), `tests/eval/harness.py` (`run_session`,
+  drives one real multi-round Discovery session per fixture/persona pair — launchable as
+  `python -m tests.eval.harness`). **Decision #41**: a real finding, corrected in-flight —
+  `defers_to_client`'s first live run used an internal-only fixture and produced nothing external;
+  correct agent behavior given no client existed in that project's context, not a bug. Fixed by
+  switching to a fixture that actually establishes a client.
 
-**A note on live flakiness, for whoever picks this up next:** the exact same non-determinism keeps
-recurring on `pytest -m live_model`'s *combined* run (never on an isolated re-run of just the
-failing test) — `test_clarify.py::test_clarify_round_on_a_post_intake_ledger_meets_the_per_round_
-shape` (T25) failed on the T27, T28 and T30 sessions' first combined runs; `test_research.py::
-test_a_real_research_session_batches_the_queue_and_persists_findings` (T29) failed once on T30's
-combined run. Every single time, an isolated re-run of just that one test passed clean. Treat a
-lone failure in the *combined* `live_model` run as suspect-flaky first — re-run that one test alone
-before concluding a real regression; only escalate if the isolated retry also fails.
+**A note on live flakiness, for whoever picks this up next:** the exact same non-determinism kept
+recurring on `pytest -m live_model`'s *combined* run through T27/T28/T30 (never on an isolated
+re-run of just the failing test) — see `blockers.md`'s own decisions/bugs for specifics. Treat a
+lone failure in a *combined* `live_model` run as suspect-flaky first — re-run that one test alone
+before concluding a real regression. T33's own multi-round sessions are individually much longer
+(a single 5-round session took ~13.5 minutes; the full 8-test matrix took ~1h31m) — budget real
+wall-clock time before running `tests/eval/test_matrix.py` again, and prefer running one test at a
+time (`pytest -m live_model tests/eval/test_matrix.py::test_name`) over the whole file when only
+one result is in question.
 
 **How to resume:**
 1. Confirm you're on `blockers-add-fixed-by-column` (`git status`) and it's up to date with
@@ -73,10 +77,7 @@ before concluding a real regression; only escalate if the isolated retry also fa
 2. Set up (or activate) `.venv/` if this is a fresh worktree — `.venv/` is gitignored, so a new
    worktree needs `python -m venv .venv && .venv/Scripts/python.exe -m pip install -e ".[dev]"`
    before anything will run (from inside `product_planning_agent/`).
-3. Run the full suite to reconfirm the 829-passing baseline before touching anything. Optionally
-   also run `pytest -m live_model` to reconfirm the 9 real-model tests still pass (watch for the
-   flakiness note above — a lone failure there is not automatically a regression).
-4. Open `tasks/t31_cli_and_status_board.md` and start there. It has no listed model requirement
-   ("Needs a model? No") — the first task since T20 that doesn't.
-5. Delete this file (or update it) once T31 is committed — it's a handoff note for the next
+3. Run the full suite to reconfirm the baseline before touching anything.
+4. Open `tasks/t34_eval_suite_and_baseline.md` and start there.
+5. Delete this file (or update it) once T34 is committed — it's a handoff note for the next
    session, not a permanent record like `blockers.md`.
