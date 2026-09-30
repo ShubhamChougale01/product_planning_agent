@@ -42,10 +42,17 @@ from ppa.ledger.materialize import entity_type_for
 from ppa.ledger.models import BaseEntity, EntityType
 from ppa.ledger.project import Project
 from ppa.ledger.store import append_event
-from ppa.providers.model import ModelProvider
+from ppa.providers.model import DEFAULT_CONFIG_PATH, ModelProvider
 from ppa.results.categories import ErrorCategory, RecoveryAction
 from ppa.results.envelope import ErrorInfo
 from ppa.tools.approval import _read_all_events  # reused directly — see this module's own docstring
+
+LLM_SURFACE = frozenset({"interpretation", "narration"})
+"""DESIGN.md §2.17: a REVIEW turn confirms/updates HIGH-impact assumptions
+from the user's stated response (interpretation) while presenting the rest
+of the ledger's own open state in readable prose (narration). Checked
+against `ppa.providers.model.LLM_SURFACES` by
+`tests/eval/test_llm_surface_invariant.py`."""
 
 
 class ReviewApproval(BaseModel):
@@ -144,7 +151,7 @@ def evaluate_review_round(
 
 
 async def _run_one_review_turn(*, system_prompt: str, server: Any, allowed_tools: list[str], user_message: str) -> tuple[str, float | None]:
-    provider = ModelProvider()
+    provider = ModelProvider.from_config(DEFAULT_CONFIG_PATH)
     client = provider.client(
         system_prompt=system_prompt, allowed_tools=allowed_tools,
         mcp_servers={_server_name(allowed_tools): server}, tools=["ToolSearch"],

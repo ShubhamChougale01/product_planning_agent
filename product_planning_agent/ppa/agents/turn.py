@@ -47,13 +47,22 @@ from ppa.ledger.models import EntityType
 from ppa.ledger.project import Project
 from ppa.ledger.store import path_lock, read_project_meta, write_project_meta
 from ppa.orchestrator.context import assemble_context
-from ppa.providers.model import ModelProvider
+from ppa.providers.model import DEFAULT_CONFIG_PATH, ModelProvider
 from ppa.results.categories import ErrorCategory, RecoveryAction
 from ppa.results.envelope import ErrorInfo
 from ppa.tools.dispatch import InvocationContext
 from ppa.tools.server import granted_sdk_tools
 
 _MODE_META_KEY = "discovery_mode"
+
+LLM_SURFACE = frozenset({"interpretation", "question_generation", "narration"})
+"""DESIGN.md §2.17: one real Discovery turn (INTAKE/CLARIFY/DONT_KNOW/
+EXTERNAL) genuinely mixes three of the four surfaces in a single call —
+turning free-text answers into structured entities (interpretation),
+deciding what to ask next (question generation), and returning readable
+prose in `AgentResult.summary` (narration). Checked against
+`ppa.providers.model.LLM_SURFACES` by
+`tests/eval/test_llm_surface_invariant.py`."""
 
 
 def _project_from_ctx(ctx: InvocationContext) -> Project:
@@ -132,7 +141,7 @@ async def _run_one_sdk_turn(*, system_prompt: str, server: Any, allowed_tools: l
     execution (and therefore every ledger write this turn makes) happens
     inside this exchange, dispatched by the in-process MCP server."""
 
-    provider = ModelProvider()
+    provider = ModelProvider.from_config(DEFAULT_CONFIG_PATH)
     client = provider.client(
         system_prompt=system_prompt,
         allowed_tools=allowed_tools,

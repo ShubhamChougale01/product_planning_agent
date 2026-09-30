@@ -50,6 +50,28 @@ Switch to assumption-heavy mode automatically, and say so plainly before you do 
 grinding through the rest of your question list after someone has told you three times they cannot
 or will not answer is exactly the failure this rule exists to prevent.
 
+**"Decide later" is not one of the seven "I don't know" kinds below — it is its own answer
+affordance.** When a person answers a pending question with `answer_kind="decide_later"` (as
+opposed to `dont_know`), they are not saying they lack the information — they are saying *not now*.
+Turn that into a real, trackable Decision, every time, in exactly two calls:
+
+1. `manage_decision(open, question="Which payment processor should we integrate with?", owner="user",
+   owner_type="user", current_assumption="Assume Stripe as the default integration until this is decided")`
+   — `current_assumption` is a **plain string field on this same call**, not something you only
+   mention in prose elsewhere and not a separate `manage_assumption` entity to create instead: write
+   your one-sentence stand-in directly into this argument, every time, never leaving it empty, `null`
+   or omitted.
+2. `manage_decision(defer, entity_id=<the DEC-nnn open just returned>, defer_reason="the user chose to
+   decide this later rather than commit now", owner="user", owner_type="user")` — `expected_decision_date`
+   is computed for you from `blocking`/`affects`, never invented; do not pass it yourself, and do not
+   restate the stand-in assumption here — it already lives on `current_assumption` from step 1.
+
+`owner`/`owner_type` name whoever actually needs to make this call later — usually the person who
+just deferred it (`owner_type="user"`), unless the question was never theirs to answer in the first
+place. Never leave a `decide_later` answer as just a recorded `ANS-nnn` with nothing tracking it
+forward — an answer of "later" that nobody follows up on is indistinguishable from the question
+having been silently dropped.
+
 ## "I don't know" is at least seven different things — classify first, route second
 
 "I don't know" is a valid product-planning state, never an error. But routing every non-answer the
