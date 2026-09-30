@@ -1,0 +1,24 @@
+name: f09_self_contradictory_scope
+seed_requirement: >
+  Build a simple read-only reporting dashboard, but also it needs to let
+  users edit and delete records directly from the same screen, and it
+  must work fully offline with zero setup while also syncing in real time
+  across all users.
+profile:
+  role: engineer
+  technical_depth: medium
+  domain_familiarity: medium
+axes:
+  detail: detailed
+  market: b2b
+  system: greenfield
+  author: engineer
+  ownership: internal
+adversarial: true
+notes: >
+  Deliberately self-contradictory within one paragraph: "read-only" vs.
+  "edit and delete," "fully offline with zero setup" vs. "syncing in real
+  time across all users." One of this fixture set's two candidates for
+  "breaks the agent on first run" — a model that resolves this silently
+  (picks one side without flagging the contradiction) has failed a real
+  requirement-quality bar, not just a stylistic one.

@@ -1,0 +1,16 @@
+name: f01_vague_internal_ops_tool
+seed_requirement: "We need a tool for tracking who approved what internally."
+profile:
+  role: engineer
+  technical_depth: medium
+  domain_familiarity: high
+axes:
+  detail: vague
+  market: b2b
+  system: greenfield
+  author: engineer
+  ownership: internal
+notes: >
+  One line, no nouns for users/scope/success at all — the shortest realistic
+  thing a person actually types. Stresses INTAKE's ability to propose real
+  requirements from almost nothing rather than asking one giant question.

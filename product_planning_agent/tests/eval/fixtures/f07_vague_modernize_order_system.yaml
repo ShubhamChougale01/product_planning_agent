@@ -1,0 +1,16 @@
+name: f07_vague_modernize_order_system
+seed_requirement: "We should probably modernize the old order system somehow."
+profile:
+  role: product
+  technical_depth: medium
+  domain_familiarity: high
+axes:
+  detail: vague
+  market: b2b
+  system: legacy
+  author: product
+  ownership: internal
+notes: >
+  Vague and legacy at once, but internal (no external client) and
+  product-authored — the "everyone knows we should do *something*" fixture,
+  with no concrete scope boundary stated anywhere.

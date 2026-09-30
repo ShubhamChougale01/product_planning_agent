@@ -1,0 +1,19 @@
+name: f02_detailed_recipe_app
+seed_requirement: >
+  Build a mobile app where home cooks can log recipes, tag them by cuisine
+  and dietary restriction, and share a weekly meal plan with family members
+  who don't have the app installed.
+profile:
+  role: product
+  technical_depth: low
+  domain_familiarity: medium
+axes:
+  detail: detailed
+  market: consumer
+  system: greenfield
+  author: product
+  ownership: internal
+notes: >
+  Two sentences, several concrete nouns (cuisine tags, dietary restrictions,
+  sharing with non-users) — a product person's own detailed one-shot pitch,
+  the opposite end of f01 on every axis at once.

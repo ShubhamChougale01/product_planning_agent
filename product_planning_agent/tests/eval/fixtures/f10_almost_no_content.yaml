@@ -1,0 +1,22 @@
+name: f10_almost_no_content
+seed_requirement: "idk something with AI"
+profile:
+  role: engineer
+  technical_depth: medium
+  domain_familiarity: low
+axes:
+  detail: vague
+  market: consumer
+  system: greenfield
+  author: engineer
+  ownership: internal
+adversarial: true
+notes: >
+  As close to zero real content as a genuine user message gets — no
+  problem, no user, no scope, no platform, nothing but a topic word. This
+  fixture set's other candidate for "breaks the agent on first run":
+  T24's own shape check requires >= 3 proposed requirements and >= 2
+  confirmation-flagged assumptions from Intake; a model that confabulates
+  three specific requirements from four words has fabricated content
+  DESIGN.md explicitly forbids, and a model that produces fewer than
+  three has failed the shape check honestly. Neither outcome is "fine."

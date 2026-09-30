@@ -76,7 +76,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | | Task | Est | Model |
 |---|---|---|---|
 | ☑ | `t32_transactions_retry_recovery.md` Transactions, retry, recovery and escalation | 1.5 day | No |
-| ☐ | `t33_eval_fixtures_and_personas.md` Eval fixtures and personas | 0.75 day | Yes |
+| ☑ | `t33_eval_fixtures_and_personas.md` Eval fixtures and personas | 0.75 day | Yes |
 | ☐ | `t34_eval_suite_and_baseline.md` Eval suite, metrics and baseline | 1.75 day | Yes |
 | ☐ | `t35_hardening_and_documentation.md` Hardening and documentation | 1 day | No |
 
