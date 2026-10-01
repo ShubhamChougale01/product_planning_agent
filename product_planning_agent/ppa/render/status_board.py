@@ -398,3 +398,63 @@ def render_provenance(entity_id: str, audit_path) -> str:
             f"({record.operation}) in {record.workflow_state} — {outcome} — {record.reason}"
         )
     return "\n".join(lines)
+
+
+def render_cost_report(project: Project) -> str:
+    """`ppa status --cost` (S13.3) — tokens and cost per turn, per agent,
+    per mode, folded straight from `turn.cost_recorded` events (`ppa.
+    orchestrator.loop._write_turn_cost_event`). Same "the model contributes
+    nothing to it" principle as the rest of this module: every number here
+    is a plain fold over the event log, never a live estimate."""
+
+    from ppa.orchestrator.context import read_events
+
+    events = read_events(project.events_path)
+    lines = [f"COST — {project.name}", ""]
+    lines.extend(_cost_rows(events))
+    return "\n".join(lines)
+
+
+def _cost_rows(events) -> list[str]:
+    from ppa.ledger.events import EventType
+
+    by_agent: dict[str, dict[str, float]] = {}
+    by_mode: dict[str, dict[str, float]] = {}
+    total_cost = 0.0
+    total_tokens = 0
+    turns = 0
+
+    for event in events:
+        if event.type is not EventType.TURN_COST_RECORDED:
+            continue
+        after = event.after or {}
+        agent_name = after.get("agent_name") or "unknown"
+        mode = after.get("mode") or "unknown"
+        cost = after.get("cost_usd") or 0.0
+        tokens = after.get("context_tokens") or 0
+
+        turns += 1
+        total_cost += cost
+        total_tokens += tokens
+        for bucket, key in ((by_agent, agent_name), (by_mode, mode)):
+            entry = bucket.setdefault(key, {"cost": 0.0, "tokens": 0, "turns": 0})
+            entry["cost"] += cost
+            entry["tokens"] += tokens
+            entry["turns"] += 1
+
+    lines = [f"Total       {turns} turn{'s' if turns != 1 else ''} · ${total_cost:.4f} · ~{total_tokens} tokens"]
+    if not turns:
+        lines.append("  (no turns recorded yet)")
+        return lines
+
+    lines.append("")
+    lines.append("By agent:")
+    for agent_name, b in sorted(by_agent.items()):
+        lines.append(f"  {agent_name:<14} {b['turns']:>3} turns · ${b['cost']:.4f} · ~{b['tokens']} tokens")
+
+    lines.append("")
+    lines.append("By mode:")
+    for mode, b in sorted(by_mode.items()):
+        lines.append(f"  {mode:<14} {b['turns']:>3} turns · ${b['cost']:.4f} · ~{b['tokens']} tokens")
+
+    return lines

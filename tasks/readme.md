@@ -78,7 +78,7 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 | ☑ | `t32_transactions_retry_recovery.md` Transactions, retry, recovery and escalation | 1.5 day | No |
 | ☑ | `t33_eval_fixtures_and_personas.md` Eval fixtures and personas | 0.75 day | Yes |
 | ☑ | `t34_eval_suite_and_baseline.md` Eval suite, metrics and baseline | 1.75 day | Yes |
-| ☐ | `t35_hardening_and_documentation.md` Hardening and documentation | 1 day | No |
+| ☑ | `t35_hardening_and_documentation.md` Hardening and documentation | 1 day | No |
 
 ## Checkpoints
 
@@ -91,6 +91,6 @@ Tasks marked **no model** need no API calls and no Claude Code session — they 
 
 | # | Question | Blocks | Resolve by |
 |---|---|---|---|
-| 1 | ~~Do Coditas templates exist?~~ | — | **Resolved 2026-09-23: no. T04 defines our own.** |
+| 1 | ~~Do Coditas templates exist?~~ | — | **Resolved 2026-09-23: no. T04 defines our own.** See `docs/decisions/house_style_templates.md`. |
 | 2 | ~~Which model tier for eval runs?~~ | — | **Resolved 2026-09-30: `primary` (Sonnet 5).** See `docs/decisions/model_tier.md` — `cheap` failed the quality bar and wasn't even faster; `deep` passed but cost ~2.5x more for no measured benefit. |
 | 3 | ~~Is web search available on subscription auth?~~ | — | **Resolved 2026-09-23: yes. T28/T29 ship with research, not degraded.** |
