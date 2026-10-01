@@ -60,7 +60,7 @@ from ppa.ledger.events import EventType
 from ppa.ledger.materialize import current_entities, entity_type_for
 from ppa.ledger.models import BaseEntity, EntityType, QuestionAnswer
 from ppa.ledger.project import Project
-from ppa.providers.model import ModelProvider
+from ppa.providers.model import DEFAULT_CONFIG_PATH, ModelProvider
 from ppa.results.categories import ErrorCategory, RecoveryAction
 from ppa.results.envelope import ErrorInfo
 from ppa.tools.approval import _read_all_events  # reused directly — same as ppa.agents.modes.review
@@ -70,6 +70,13 @@ from ppa.tools.server import granted_sdk_tools
 REWIND_TARGET = "DISCOVERY"
 """See this module's own docstring — the only real rewind target while
 Planning/Delivery stay unwired (decision #28)."""
+
+LLM_SURFACE = frozenset({"interpretation"})
+"""DESIGN.md §2.17: adjudicating a conflict candidate (real contradiction,
+refinement, or unrelated?) is turning new free text against existing
+CONFIRMED state into a structured verdict — interpretation, nothing else.
+Checked against `ppa.providers.model.LLM_SURFACES` by
+`tests/eval/test_llm_surface_invariant.py`."""
 
 _SYSTEM_PROMPT = """## Change handling — a change came in, do not lose or silently corrupt anything
 
@@ -144,7 +151,7 @@ def _guidance_style_server(project: Project) -> tuple[Any, list[str]]:
 
 
 async def _run_one_change_turn(*, system_prompt: str, server: Any, allowed_tools: list[str], user_message: str) -> tuple[str, float | None]:
-    provider = ModelProvider()
+    provider = ModelProvider.from_config(DEFAULT_CONFIG_PATH)
     client = provider.client(system_prompt=system_prompt, allowed_tools=allowed_tools, mcp_servers={"change-tools": server}, tools=["ToolSearch"])
     text: list[str] = []
     cost: float | None = None

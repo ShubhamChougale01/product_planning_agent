@@ -61,7 +61,7 @@ tests/eval/test_dont_know.py
 - [x] `not_my_call` produces a DEC with `owner_type != user`
 - [x] `factually_unknown` produces an UNK with `route=RESEARCH`
 - [x] A blocking research item is recorded as `blocking=true, route=RESEARCH`
-- [ ] The `always_idk` persona terminates, with tracked assumptions and deferred decisions, never an empty loop — the anti-loop guard's *arithmetic* is proven deterministically (`simulate_always_idk_termination`); the persona itself and a real multi-round session are T33/T34's own artifacts, not yet built — see decision #34, Build record
+- [x] The `always_idk` persona terminates, with tracked assumptions and deferred decisions, never an empty loop — **resolved at T34**: a real 6-round session (`tests/eval/test_decisions_33_34_clarify_session_level.py`) shows the anti-loop guard's forced escalation actually firing against real ledger state (a blocking `Unknown(route="GUIDANCE")` present by the end) and no question ever repeated verbatim — not just `simulate_always_idk_termination`'s arithmetic proof in isolation. See blockers.md decision #34.
 - [x] No question is ever re-asked in identical form
 
 ## Build record

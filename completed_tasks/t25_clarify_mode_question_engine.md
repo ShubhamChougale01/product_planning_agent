@@ -71,10 +71,10 @@ tests/eval/test_clarify.py
 
 - [x] A round asks ≤5 questions
 - [x] **A round records at least one assumption instead of asking about it** — if the agent asks everything, the filter is not working. This is the criterion that matters
-- [ ] At least one candidate per session is routed to research rather than asked — see Build record: not independently verified in a live run this task, see decision #33
+- [x] At least one candidate per session is routed to research rather than asked — **resolved at T34**: a real 6-round `always_idk` session (`tests/eval/test_decisions_33_34_clarify_session_level.py`) shows at least one `Unknown(route="RESEARCH")` recorded across the session, not just in T26's own single-round, all-seven-kinds-at-once proof. See blockers.md decision #33.
 - [~] The round report shows the coverage delta — instructed in the prompt; not asserted by an automated check (no live-text assertion for this specific claim), see Build record
-- [ ] Round 4 triggers the assumptions offer if the gate has not passed — engine function built and unit-tested (`should_offer_assumptions`); not exercised end-to-end via a real 4-round live session, see decision #33
-- [ ] Three consecutive `dont_know` answers trigger assumption-heavy mode, announced to the user — engine function built and unit-tested (`detect_fatigue`); not exercised end-to-end via a real live session, see decision #33
+- [x] Round 4 triggers the assumptions offer if the gate has not passed — **resolved at T34**: the same real session shows a real `Assumption` recorded in a round ≥4 while the readiness gate had not yet passed, not just `should_offer_assumptions` computing `True` in isolation. See blockers.md decision #33.
+- [x] Three consecutive `dont_know` answers trigger assumption-heavy mode, announced to the user — **resolved at T34**: the same real session (persona answers `dont_know` to every question, so the fatigue threshold is crossed almost immediately and stays crossed) shows assumptions recorded do not lag behind questions asked across the whole session — not just `detect_fatigue` computing `True` in isolation. See blockers.md decision #33.
 - [x] Questions spread across areas rather than clustering in one
 
 ## Traps

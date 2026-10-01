@@ -56,7 +56,7 @@ from ppa.agents.base import AgentResult, AgentResultStatus, BaseAgent
 from ppa.ledger.materialize import current_entities, entity_type_for
 from ppa.ledger.models import EntityType
 from ppa.ledger.project import Project
-from ppa.providers.model import ModelProvider
+from ppa.providers.model import DEFAULT_CONFIG_PATH, ModelProvider
 from ppa.results.categories import ErrorCategory, RecoveryAction
 from ppa.results.envelope import ErrorInfo
 from ppa.tools.server import granted_sdk_tools
@@ -65,6 +65,11 @@ if TYPE_CHECKING:
     from ppa.tools.dispatch import InvocationContext
 
 _PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "subagent_guidance.md"
+
+LLM_SURFACE = frozenset({"guidance"})
+"""DESIGN.md §2.17 surface 3, verbatim: "explaining a decision, generating
+and comparing options." Checked against `ppa.providers.model.LLM_SURFACES`
+by `tests/eval/test_llm_surface_invariant.py`."""
 
 MIN_OPTIONS = 2
 """S9.1: "returns a schema-valid brief with >=2 options" — enforced on the
@@ -158,7 +163,7 @@ async def _run_one_guidance_turn(*, system_prompt: str, server: Any, allowed_too
     `tools=[]` (bug #6) and web search is genuinely this subagent's job,
     confirmed available under subscription auth (decision #5)."""
 
-    provider = ModelProvider()
+    provider = ModelProvider.from_config(DEFAULT_CONFIG_PATH)
     client = provider.client(
         system_prompt=system_prompt,
         allowed_tools=allowed_tools,

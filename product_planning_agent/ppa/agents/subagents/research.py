@@ -41,13 +41,22 @@ from ppa.agents.base import AgentResult, AgentResultStatus, BaseAgent
 from ppa.ledger.materialize import current_entities, entity_type_for
 from ppa.ledger.models import EntityType, ResearchFinding, Unknown
 from ppa.ledger.project import Project
-from ppa.providers.model import ModelProvider
+from ppa.providers.model import DEFAULT_CONFIG_PATH, ModelProvider
 from ppa.providers.research import ResearchProvider, SdkWebSearchResearchProvider, failed_result
 from ppa.tools.discovery_tools import manage_unknown
 from ppa.tools.server import granted_sdk_tools
 
 if TYPE_CHECKING:
     from ppa.tools.dispatch import InvocationContext
+
+LLM_SURFACE = frozenset({"interpretation"})
+"""DESIGN.md §2.17 does not name "research" as its own fifth surface —
+this is a judgment call (see blockers.md, T34): a research turn is
+"interpretation" generalized from user free text to found external
+content — it turns web search results into structured `ResearchFinding`
+entities, the same "unstructured input -> structured entity" shape §2.17
+names for surface 1. Checked against `ppa.providers.model.LLM_SURFACES` by
+`tests/eval/test_llm_surface_invariant.py`."""
 
 STALE_UNDERPINNING_STATUSES = ("OPEN", "DECIDE_LATER")
 """A `Decision` still in either status is "still open" for staleness
@@ -136,7 +145,7 @@ def _guidance_style_server(project: Project) -> tuple[Any, list[str]]:
 
 
 async def _run_one_research_turn(*, system_prompt: str, server: Any, allowed_tools: list[str], user_message: str) -> tuple[str, float | None]:
-    provider = ModelProvider()
+    provider = ModelProvider.from_config(DEFAULT_CONFIG_PATH)
     client = provider.client(
         system_prompt=system_prompt, allowed_tools=allowed_tools,
         mcp_servers={"research-tools": server}, tools=["ToolSearch", "WebSearch"],

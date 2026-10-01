@@ -40,6 +40,20 @@ MODEL_TIERS: dict[str, str] = {
 
 DEFAULT_TIER = "primary"
 
+#: `product_planning_agent/config/model.yaml` — every real call site that
+#: wants `config/model.yaml` (and not just env overrides) respected should
+#: pass this to `from_config`, matching `ppa/cli.py`'s own convention rather
+#: than each re-deriving the path depth by hand.
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "model.yaml"
+
+#: DESIGN.md §2.17 — the only four surfaces a real model call may ever
+#: originate from. Every module that constructs a `ModelProvider` for a
+#: real turn declares which one it is via its own module-level
+#: `LLM_SURFACE` constant, checked against this set by
+#: `tests/eval/test_llm_surface_invariant.py` — see that test's own
+#: docstring for the exhaustive site inventory it enforces.
+LLM_SURFACES = frozenset({"interpretation", "question_generation", "guidance", "narration"})
+
 AuthSource = Literal["subscription", "api_key"]
 
 
