@@ -9,9 +9,17 @@ from datetime import datetime, timezone
 
 from ppa.config.profiles import UserProfile
 from ppa.ledger.audit import AuditResult, record_audit
+from ppa.ledger.events import EventType
 from ppa.ledger.models import Assumption, Decision, Requirement, Unknown
 from ppa.ledger.project import create_project
-from ppa.render.status_board import render_history, render_open_items, render_provenance, render_status_board
+from ppa.ledger.store import append_event
+from ppa.render.status_board import (
+    render_cost_report,
+    render_history,
+    render_open_items,
+    render_provenance,
+    render_status_board,
+)
 
 NOW = datetime(2026, 9, 21, 14, 32, 0, tzinfo=timezone.utc)
 
@@ -268,3 +276,41 @@ def test_render_provenance_with_no_matching_records_says_so(tmp_path):
     project = _project(tmp_path)
     provenance = render_provenance("DEC-999", project.audit_path)
     assert "No audit record" in provenance
+
+
+def _record_turn_cost(project, *, agent_name, mode, cost_usd, context_tokens) -> None:
+    append_event(
+        dict(
+            ts=NOW, type=EventType.TURN_COST_RECORDED, entity_id=None, actor_id="agent:orchestrator",
+            actor_role="agent", agent_name="orchestrator", workflow_state="DISCOVERY", txn_id=None,
+            source="orchestrator_loop", reason="turn cost instrumentation", before=None,
+            after={
+                "agent_name": agent_name, "mode": mode, "cost_usd": cost_usd, "context_tokens": context_tokens,
+            },
+            session_id="session-1",
+        ),
+        project.events_path,
+    )
+
+
+def test_render_cost_report_breaks_down_by_agent_and_mode(tmp_path):
+    project = _project(tmp_path)
+    _record_turn_cost(project, agent_name="discovery", mode="intake", cost_usd=0.01, context_tokens=100)
+    _record_turn_cost(project, agent_name="discovery", mode="clarify", cost_usd=0.02, context_tokens=200)
+    _record_turn_cost(project, agent_name="guidance", mode="guidance", cost_usd=0.03, context_tokens=300)
+
+    report = render_cost_report(project)
+
+    assert "3 turns" in report
+    assert "$0.0600" in report  # total
+    assert "~600 tokens" in report  # total
+    assert "discovery" in report
+    assert "guidance" in report
+    assert "intake" in report
+    assert "clarify" in report
+
+
+def test_render_cost_report_with_no_turns_recorded_says_so(tmp_path):
+    project = _project(tmp_path)
+    report = render_cost_report(project)
+    assert "no turns recorded" in report.lower()

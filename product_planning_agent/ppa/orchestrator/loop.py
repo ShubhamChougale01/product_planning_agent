@@ -215,6 +215,49 @@ def _commit_txn(
     )
 
 
+def _write_turn_cost_event(
+    project: Project,
+    result: AgentResult,
+    *,
+    agent_name: str,
+    workflow_state: str,
+    session_id: str,
+    context_tokens: int,
+    now: datetime,
+) -> str:
+    """One `turn.cost_recorded` per `run_turn` call (S13.3) — `mode`
+    defaults to `agent_name` for the mode-less subagents (guidance/
+    research), which never populate `result.data["mode"]` the way T24's
+    discovery turn does (`ppa/agents/turn.py`); every real model call site
+    puts `cost_usd` in `result.data` the same way (T34's own LLM-surface
+    invariant), so this is the one place that number gets persisted instead
+    of discarded once the turn returns."""
+
+    return append_event(
+        dict(
+            ts=now,
+            type=EventType.TURN_COST_RECORDED,
+            entity_id=None,
+            actor_id=_ORCHESTRATOR_ACTOR,
+            actor_role="agent",
+            agent_name="orchestrator",
+            workflow_state=workflow_state,
+            txn_id=None,
+            source="orchestrator_loop",
+            reason="turn cost instrumentation",
+            before=None,
+            after={
+                "agent_name": agent_name,
+                "mode": result.data.get("mode", agent_name),
+                "cost_usd": result.data.get("cost_usd"),
+                "context_tokens": context_tokens,
+            },
+            session_id=session_id,
+        ),
+        project.events_path,
+    )
+
+
 def _set_workflow_state(project: Project, new_state: str) -> None:
     """`workflow_state` lives only in `project.json` (no dedicated event
     type exists for a pure state change — `ppa.ledger.project.create_project`
@@ -606,6 +649,15 @@ def run_turn(
         attempts=attempts,
     )
     step.context_tokens = bundle.token_estimate
+    _write_turn_cost_event(
+        project,
+        result,
+        agent_name=agent.id,
+        workflow_state=workflow_state,
+        session_id=session_id,
+        context_tokens=bundle.token_estimate,
+        now=now,
+    )
     return step
 
 

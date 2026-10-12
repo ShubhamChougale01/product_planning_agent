@@ -220,6 +220,47 @@ def test_ok_result_advances_and_commits(tmp_path, monkeypatch):
     assert agent.calls == 1
 
 
+def test_run_turn_records_one_turn_cost_event_per_call(tmp_path, monkeypatch):
+    """T35/S13.3: `turn.cost_recorded` is written once per `run_turn` call,
+    carrying the agent's own `cost_usd`/`mode` (from `AgentResult.data`) and
+    the assembled context's token estimate — never recomputed, never
+    dropped on the floor the way it was before T35 added this event."""
+
+    project = _make_project(tmp_path)
+    agent = _FixtureAgent(
+        AgentResult(status=AgentResultStatus.OK, summary="did discovery work", data={"mode": "intake", "cost_usd": 0.0234})
+    )
+    _select_only(monkeypatch, agent)
+
+    loop.run_turn(project, _profile(), session_id="session-1", now=NOW)
+
+    cost_events = [e for e in context.read_events(project.events_path) if e.type is EventType.TURN_COST_RECORDED]
+    assert len(cost_events) == 1
+    after = cost_events[0].after
+    assert after["agent_name"] == "discovery"
+    assert after["mode"] == "intake"
+    assert after["cost_usd"] == 0.0234
+    assert isinstance(after["context_tokens"], int)
+
+
+def test_run_turn_records_turn_cost_even_when_the_agent_reports_no_cost(tmp_path, monkeypatch):
+    """A fixture/stub agent (no real model call) still gets one cost event,
+    with `cost_usd=None` and `mode` falling back to the agent's own id —
+    cost instrumentation never requires a real model call to function."""
+
+    project = _make_project(tmp_path)
+    agent = _FixtureAgent(AgentResult(status=AgentResultStatus.OK, summary="did discovery work"))
+    _select_only(monkeypatch, agent)
+
+    loop.run_turn(project, _profile(), session_id="session-1", now=NOW)
+
+    cost_events = [e for e in context.read_events(project.events_path) if e.type is EventType.TURN_COST_RECORDED]
+    assert len(cost_events) == 1
+    assert cost_events[0].after["agent_name"] == "discovery"
+    assert cost_events[0].after["mode"] == "discovery"
+    assert cost_events[0].after["cost_usd"] is None
+
+
 def test_partial_result_advances_and_commits(tmp_path, monkeypatch):
     project = _make_project(tmp_path)
     agent = _FixtureAgent(AgentResult(status=AgentResultStatus.PARTIAL, summary="did some work"))

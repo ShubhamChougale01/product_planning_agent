@@ -115,6 +115,14 @@ class EventType(str, Enum):
     ANOMALY_LOOP_CAP_REACHED = "anomaly.loop_cap_reached"
     USER_FORCED_READY = "user.forced_ready"
 
+    TURN_COST_RECORDED = "turn.cost_recorded"
+    """T35: one per `ppa.orchestrator.loop.run_turn` call — `after` carries
+    `agent_name`/`mode`/`cost_usd`/`context_tokens`, folded by `ppa status
+    --cost` (S13.3) into a per-agent, per-mode breakdown. Not tied to any
+    entity (`entity_id=None`), same pattern as `TXN_COMMIT`/
+    `ANOMALY_LOOP_CAP_REACHED` — observability about the turn itself, never
+    replayed into entity state."""
+
 
 EVENT_ID_PATTERN = re.compile(r"EVT-\d{3,}")
 """Shape only. Allocation and strict monotonicity are T07's job

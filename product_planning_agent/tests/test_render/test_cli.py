@@ -14,7 +14,8 @@ from ppa.agents.base import AgentResult, AgentResultStatus, BaseAgent
 from ppa.config.profiles import UserProfile
 from ppa.ledger.materialize import current_entities
 from ppa.ledger.project import create_project
-from ppa.ledger.store import append_event_with_id
+from ppa.ledger.events import EventType
+from ppa.ledger.store import append_event, append_event_with_id
 from ppa.orchestrator import loop as orchestrator_loop
 
 NOW = datetime(2026, 9, 21, 14, 32, 0, tzinfo=timezone.utc)
@@ -64,6 +65,34 @@ def test_ppa_status_items_flag_filters_to_the_list(tmp_path, monkeypatch):
     assert "PLANNING STATUS" in full.output
     assert "PLANNING STATUS" not in items.output
     assert "Readiness" in items.output
+
+
+def test_ppa_status_cost_flag_shows_the_token_and_cost_breakdown(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from ppa.cli import app
+
+    monkeypatch.chdir(tmp_path)
+    project = _project(tmp_path)
+    append_event(
+        dict(
+            ts=NOW, type=EventType.TURN_COST_RECORDED, entity_id=None, actor_id="agent:orchestrator",
+            actor_role="agent", agent_name="orchestrator", workflow_state="DISCOVERY", txn_id=None,
+            source="orchestrator_loop", reason="turn cost instrumentation", before=None,
+            after={"agent_name": "discovery", "mode": "intake", "cost_usd": 0.05, "context_tokens": 150},
+            session_id="session-1",
+        ),
+        project.events_path,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["status", project.slug, "--cost"])
+
+    assert result.exit_code == 0, result.output
+    assert "COST" in result.output
+    assert "discovery" in result.output
+    assert "intake" in result.output
+    assert "0.0500" in result.output  # rich highlights bare numbers; "$" stays outside the escape span
 
 
 def test_ppa_history_reports_no_entity_for_an_unknown_id(tmp_path, monkeypatch):

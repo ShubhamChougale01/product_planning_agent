@@ -138,14 +138,18 @@ def chat(project: str) -> None:
 def status(
     project: str,
     items: bool = typer.Option(False, "--items", help="Show just the readiness/open-items list."),
+    cost: bool = typer.Option(False, "--cost", help="Show the token/cost breakdown per agent and per mode."),
 ) -> None:
     """Show the status board: coverage, readiness, open items — one surface."""
 
     from ppa.ledger.materialize import current_entities
     from ppa.ledger.project import open_project
-    from ppa.render.status_board import render_open_items, render_status_board
+    from ppa.render.status_board import render_cost_report, render_open_items, render_status_board
 
     proj = open_project(project)
+    if cost:
+        console.print(render_cost_report(proj))
+        return
     entities = current_entities(proj.events_path)
     if items:
         console.print(render_open_items(proj, entities))
