@@ -1,0 +1,276 @@
+<title>PPA Build Review</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Schibsted+Grotesk:wght@400;500;700&display=swap">
+<style>
+/* Layout: single reading column with a sticky section nav; flow diagram as stacked lanes, walkthrough as stepper */
+:root{
+  --bg:#f6f7f5; --surface:#ffffff; --fg:#1b2420; --muted:#5d6b64; --line:#d9dfdb;
+  --accent:#0b6b5c; --accent-soft:#dff0eb; --code-bg:#eef2ef;
+  --ok:#1f7a3d; --ok-soft:#dff3e5; --warn:#9a5b00; --warn-soft:#fbeccb; --bad:#a3282a; --bad-soft:#f8dcdc;
+  --font-body:'Schibsted Grotesk',system-ui,sans-serif; --font-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101614; --surface:#18211e; --fg:#e4ebe7; --muted:#97a69e; --line:#2b3732;
+  --accent:#4fd1b5; --accent-soft:#17352e; --code-bg:#0c1210;
+  --ok:#6fd58d; --ok-soft:#173222; --warn:#f0b955; --warn-soft:#3a2b0e; --bad:#ff8a8c; --bad-soft:#401b1c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101614; --surface:#18211e; --fg:#e4ebe7; --muted:#97a69e; --line:#2b3732;
+  --accent:#4fd1b5; --accent-soft:#17352e; --code-bg:#0c1210;
+  --ok:#6fd58d; --ok-soft:#173222; --warn:#f0b955; --warn-soft:#3a2b0e; --bad:#ff8a8c; --bad-soft:#401b1c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6;padding-inline:16px;padding-block:0}
+.wrap{max-width:980px;margin:0 auto;padding-block:32px 64px}
+h1{font-size:34px;line-height:1.15;margin:0 0 8px;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:22px;margin:0 0 6px;text-wrap:balance}
+h3{font-size:15px;margin:0 0 4px}
+p{margin:0 0 10px;max-width:70ch}
+.lede{color:var(--muted);font-size:17px;max-width:62ch}
+code,.mono{font-family:var(--font-mono);font-size:12.5px}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:8px 0;margin-inline:-16px;padding-inline:16px}
+nav a{color:var(--muted);text-decoration:none;padding:5px 12px;border-radius:999px;white-space:nowrap;font-size:13px;font-weight:500}
+nav a:hover,nav a:focus-visible{background:var(--accent-soft);color:var(--accent);outline:none}
+section{padding-top:40px}
+.sub{color:var(--muted);margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:24px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.stat b{display:block;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.2}
+.stat span{color:var(--muted);font-size:12.5px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 9px;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.mute{background:var(--code-bg);color:var(--muted)}
+/* phases */
+.phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.phase{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px}
+.phase ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px}
+.phase .bar{height:6px;background:var(--accent);border-radius:3px;margin:8px 0}
+/* flow */
+.flow{display:flex;flex-direction:column;gap:0}
+.node{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:150px 1fr;gap:6px 16px}
+.node .tag{font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:600;min-width:0;overflow-wrap:anywhere}
+.node p{margin:0;font-size:14px}
+.arrow{align-self:center;color:var(--muted);font-family:var(--font-mono);font-size:12px;padding:3px 0;text-align:center}
+.node.hot{border-color:var(--accent);background:var(--accent-soft)}
+@media(max-width:560px){.node{grid-template-columns:1fr}}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:14px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+/* stepper */
+.stepper{display:grid;grid-template-columns:230px 1fr;gap:16px;align-items:start}
+@media(max-width:700px){.stepper{grid-template-columns:1fr}}
+.steps{display:flex;flex-direction:column;gap:4px}
+@media(max-width:700px){.steps{flex-direction:row;overflow-x:auto}}
+.steps button{font:inherit;text-align:left;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;min-width:0}
+@media(max-width:700px){.steps button{white-space:nowrap}}
+.steps button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .steps button[aria-selected="true"]{color:#06201a}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .steps button[aria-selected="true"]{color:#06201a}}
+.steps button small{display:block;opacity:.75;font-size:11.5px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;font-family:var(--font-mono);font-size:12.5px;line-height:1.5;margin:8px 0}
+.under{border-left:3px solid var(--accent);padding-left:12px;color:var(--muted);font-size:13.5px;margin-top:10px}
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--code-bg)}
+tr:last-child td{border-bottom:none}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.layer{display:grid;grid-template-columns:34px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.layer:last-child{border-bottom:none}
+.layer .k{font-family:var(--font-mono);font-weight:600;color:var(--accent);font-size:13px}
+.layer p{margin:0 0 4px;font-size:14px}
+.rem{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start}
+.item p{margin:0;font-size:14px}
+.item h3{margin:0}
+.note{font-size:12.5px;color:var(--muted);margin-top:28px}
+footer{margin-top:40px;color:var(--muted);font-size:12.5px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="mono" style="color:var(--accent);margin:0 0 6px">product_planning_agent · reviewed 2026-10-12 on main</p>
+  <h1>Product Planning Agent: what's built, how it runs, what's left</h1>
+  <p class="lede">The agent takes a rough requirement, asks sharp questions, and builds a versioned, auditable planning ledger you can hand to a team. All 35 board tasks are merged into <code>main</code>. This page walks the flow with a worked example, shows how to test each layer, and lists what is still open.</p>
+  <div class="stats">
+    <div class="stat"><b>35 / 35</b><span>board tasks done</span></div>
+    <div class="stat"><b>909</b><span>default tests, 0 failures, 1 skipped (last recorded run)</span></div>
+    <div class="stat"><b>18 / 18</b><span>eval cases passing in baseline</span></div>
+    <div class="stat"><b>0</b><span>secret leaks, silent assumptions, workflow violations, unapproved external actions</span></div>
+  </div>
+</header>
+
+<nav aria-label="Sections">
+  <a href="#built">What's built</a><a href="#flow">The flow</a><a href="#walk">Worked example</a><a href="#test">How to test</a><a href="#eval">Eval and baseline</a><a href="#left">What's left</a>
+</nav>
+
+<section id="built">
+  <h2>What's built</h2>
+  <p class="sub">Six phases, built bottom-up so every later bug could be told apart from an agent bug.</p>
+  <div class="phases">
+    <div class="phase"><h3>A · Foundation <span class="pill ok">T01–T12</span></h3><div class="bar"></div>
+      <ul><li>Domain entities, status model, event model</li><li>Event log with secret scanning</li><li>Materializer, IDs, idempotency</li><li>Project lifecycle, audit log, git</li><li>Digest, coverage and readiness engines, impact graph, date rules</li></ul></div>
+    <div class="phase"><h3>B · Tools and permissions <span class="pill ok">T13–T19</span></h3><div class="bar"></div>
+      <ul><li>ToolSpec contract and registry</li><li>Permission gate and dispatcher</li><li><code>read_planning_state</code>, the <code>manage_*</code> writers, <code>ask_user</code></li><li>Stub tools and approval gate</li><li>Five validation layers</li></ul></div>
+    <div class="phase"><h3>C · Orchestration <span class="pill ok">T20–T22</span></h3><div class="bar"></div>
+      <ul><li>Agent protocol, workflow state machine</li><li>Preconditions and outer loop</li><li>Guardrail suite</li></ul></div>
+    <div class="phase"><h3>D · Discovery agent <span class="pill ok">T23–T29</span></h3><div class="bar"></div>
+      <ul><li>Prompt and internal modes</li><li>Intake, clarify and question engine</li><li>"I don't know" routing</li><li>External input and client questionnaire</li><li>Guidance and research subagents</li></ul></div>
+    <div class="phase"><h3>E · Product surface <span class="pill ok">T30–T31</span></h3><div class="bar"></div>
+      <ul><li>Review mode and change handling</li><li>CLI and status board</li></ul></div>
+    <div class="phase"><h3>F · Resilience <span class="pill ok">T32–T35</span></h3><div class="bar"></div>
+      <ul><li>Transactions, retry, escalation</li><li>Eval fixtures and personas</li><li>18-case eval suite and baseline</li><li>Cost tracking, crash-resume proof, README</li></ul></div>
+  </div>
+</section>
+
+<section id="flow">
+  <h2>The flow</h2>
+  <p class="sub">What happens between you typing an answer and the status board updating. Package names are the real folders under <code>ppa/</code>.</p>
+  <div class="flow">
+    <div class="node"><span class="tag">you · ppa/cli.py</span><p><code>ppa chat &lt;project&gt;</code> starts a round. Seven commands exist: <code>new</code>, <code>chat</code>, <code>status</code>, <code>history</code>, <code>why</code>, <code>force-ready</code>, <code>client-questions</code>.</p></div>
+    <div class="arrow">↓ opens project, reads ledger fresh</div>
+    <div class="node"><span class="tag">ppa/orchestrator</span><p>The outer loop. Checks preconditions, opens a transaction (<code>txn.begin</code>), runs one agent turn, then commits or aborts. A crash mid-turn leaves lines with no <code>txn.commit</code>, and every reader ignores them.</p></div>
+    <div class="arrow">↓ agent turn</div>
+    <div class="node hot"><span class="tag">ppa/agents · model call</span><p>The Discovery agent works in a mode: <b>intake</b> (opening move), <b>clarify</b> (question engine), <b>change</b>, <b>review</b>. It can call the <b>guidance</b> and <b>research</b> subagents. This is the only place a model runs: interpretation, question generation, guidance, narration.</p></div>
+    <div class="arrow">↓ every action is a tool call</div>
+    <div class="node"><span class="tag">ppa/tools · permissions</span><p>The dispatcher runs the permission gate first (right agent, right workflow state), then the five validation layers. A wrong-tool attempt is rejected before the tool body runs. External tools (Linear, Delivery) are stubs behind an approval gate.</p></div>
+    <div class="arrow">↓ valid writes only</div>
+    <div class="node"><span class="tag">ppa/ledger</span><p>Appends to <code>events.ndjson</code> (append-only, secrets redacted before the write) plus <code>audit.ndjson</code> (who, which tool, which state). The project is its own local git repo.</p></div>
+    <div class="arrow">↓ replay</div>
+    <div class="node"><span class="tag">ppa/engines + render</span><p>Coverage and readiness engines recompute from the log. The status board shows coverage, ledger counts, blockers and open items due. The readiness gate stays closed until every blocker clears, or you run <code>force-ready</code> and the skipped blockers are recorded.</p></div>
+  </div>
+  <div class="cols">
+    <div class="box"><h3>When the answer is "I don't know"</h3><p>It is classified, then routed: to research, to a client-owned open item (shows up in <code>client-questions</code>), or to an assumption. It never loops on the same question.</p></div>
+    <div class="box"><h3>When a requirement changes</h3><p>A new version is written, an impact report lists what it touches, and the readiness gate is recomputed. Old versions stay in <code>history</code>.</p></div>
+    <div class="box"><h3>When something fails</h3><p>Validation errors get a corrected retry. Transient errors retry up to 3 times. Permission and business errors are routed, not retried. Exhausted retries escalate with a concrete question.</p></div>
+  </div>
+</section>
+
+<section id="walk">
+  <h2>Worked example</h2>
+  <p class="sub">An "Invoice Automation" project from the README, taken from real captured CLI output. Pick a step.</p>
+  <div class="stepper">
+    <div class="steps" role="tablist" aria-label="Walkthrough steps" id="steps"></div>
+    <div class="panel" id="panel" role="tabpanel" aria-live="polite"></div>
+  </div>
+</section>
+
+<section id="test">
+  <h2>How to test</h2>
+  <p class="sub">Four layers, cheapest first. Run these from <code>product_planning_agent/</code> after <code>python -m venv .venv &amp;&amp; .venv/Scripts/python.exe -m pip install -e ".[dev]"</code>.</p>
+  <div class="box" style="padding-block:4px">
+    <div class="layer"><span class="k">1</span><div><h3>Default suite · no model, no cost</h3><p>Everything in <code>tests/</code> except live-model tests. Covers ledger, engines, tools, permissions, validation, recovery, rendering, and the deterministic eval cases.</p><pre>.venv/Scripts/python.exe -m pytest</pre><p><span class="pill mute">expect</span> about 909 passed, 1 skipped.</p></div></div>
+    <div class="layer"><span class="k">2</span><div><h3>Wiring check</h3><p>Confirms model and login wiring. No API key needed; it inherits your Claude Code login.</p><pre>.venv/Scripts/python.exe -m ppa.cli doctor</pre></div></div>
+    <div class="layer"><span class="k">3</span><div><h3>Live-model tests · real calls, slow</h3><p>Real Discovery turns. One multi-round session takes about 13 minutes, and the full 8-test matrix took about 1h31m. Run one test at a time. A single failure in a combined run is usually flaky; re-run it alone before calling it a regression.</p><pre>.venv/Scripts/python.exe -m pytest -m live_model tests/eval/test_matrix.py::test_name</pre></div></div>
+    <div class="layer"><span class="k">4</span><div><h3>Scorecard · the one command for the eval matrix</h3><pre>python -m tests.eval.scorecard                 # 14 deterministic cases, fast
+python -m tests.eval.scorecard --live          # + 4 live cases
+python -m tests.eval.scorecard --matrix --fixture f06_detailed_k8s_audit_alerting --persona always_idk
+python -m tests.eval.scorecard --save tests/eval/baseline.json
+python -m tests.eval.scorecard --compare tests/eval/baseline.json</pre><p>Use <code>--compare</code> after a prompt change to see the delta against the committed baseline.</p></div></div>
+  </div>
+  <div class="cols">
+    <div class="box"><h3>Try it by hand</h3><pre>ppa new "Demo" --seed-requirement "..."
+ppa chat demo
+ppa status demo
+ppa why demo DEC-001</pre><p>The project lands in <code>projects/</code> (gitignored here). Don't run two <code>ppa</code> processes on one project; the lock is in-process only.</p></div>
+    <div class="box"><h3>Fixtures and personas</h3><p>Ten input fixtures (vague and detailed, internal and client-facing, plus two adversarial: self-contradictory scope, almost no content) crossed with six scripted personas, including <code>always_idk</code> and <code>defers_to_client</code>.</p></div>
+  </div>
+</section>
+
+<section id="eval">
+  <h2>Eval cases and baseline</h2>
+  <p class="sub">The 18 cases from T34. Four need a live model; the other fourteen run without one. All 18 pass in the recorded baseline.</p>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>Case</th><th>Expected</th><th>Model</th></tr></thead>
+    <tbody id="cases"></tbody>
+  </table></div>
+  <h3 style="margin-top:24px">Recorded baseline vs. target</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Metric</th><th>Baseline</th><th>Target</th><th>Read</th></tr></thead>
+    <tbody>
+      <tr><td>Tool-selection accuracy</td><td class="n">100%</td><td>high</td><td><span class="pill ok">good</span></td></tr>
+      <tr><td>Recovery success rate</td><td class="n">50%</td><td>high</td><td><span class="pill warn">look into</span></td></tr>
+      <tr><td>Invalid tool-call rate</td><td class="n">19.6%</td><td>low</td><td><span class="pill warn">look into</span></td></tr>
+      <tr><td>Unnecessary-retry rate</td><td class="n">0%</td><td>low</td><td><span class="pill ok">good</span></td></tr>
+      <tr><td>Correct-escalation rate</td><td class="n">100%</td><td>high</td><td><span class="pill ok">good</span></td></tr>
+      <tr><td>Workflow-violation rate</td><td class="n">0</td><td>zero</td><td><span class="pill ok">met</span></td></tr>
+      <tr><td>Silent assumptions</td><td class="n">0</td><td>zero</td><td><span class="pill ok">met</span></td></tr>
+      <tr><td>Secret-leak total</td><td class="n">0</td><td>zero</td><td><span class="pill ok">met</span></td></tr>
+      <tr><td>Unapproved external actions</td><td class="n">0</td><td>zero</td><td><span class="pill ok">met</span></td></tr>
+      <tr><td>Questions to gate (avg)</td><td class="n">12.0</td><td>track</td><td><span class="pill mute">tracked</span></td></tr>
+      <tr><td>Coverage at gate (avg)</td><td class="n">77.8%</td><td>track</td><td><span class="pill mute">tracked</span></td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Eval model tier: <code>primary</code> (Sonnet 5). In the one-turn probe, <code>cheap</code> (Haiku) failed the intake shape check and was not faster; <code>deep</code> (Opus) passed at about 2.5x the cost with no measured benefit. See <code>docs/decisions/model_tier.md</code>.</p>
+</section>
+
+<section id="left">
+  <h2>What's left</h2>
+  <p class="sub">The board is finished. These are the loose ends I found reading the README, <code>cli.py</code> and <code>baseline.json</code>. I did not run any tests for this review, so the test counts are from the handoff note and the baseline file.</p>
+  <div class="rem">
+    <div class="item"><span class="pill bad">gap</span><div><h3><code>ppa report</code> is still a stub</h3><p>The command prints "not built yet" and points at T31, but T31 did not include it. It is the one CLI command that does nothing, and the README says it never got its own task. It is the natural next task: write the structured report to an output folder.</p></div></div>
+    <div class="item"><span class="pill warn">check</span><div><h3>Recovery success rate is 50%</h3><p>Baseline shows 0.5 against a "high" target. All 18 cases pass, so this is likely how recovery is counted across cases rather than a failing case, but I haven't traced which cases drag it down. Worth reading <code>rubric.py</code> and the per-case rows before treating it as healthy.</p></div></div>
+    <div class="item"><span class="pill warn">check</span><div><h3>Invalid tool-call rate is 19.6%</h3><p>Case 1's notes show five rejected <code>manage_requirement</code> calls with <code>MISSING_COVERS_AREAS</code> on the right tool. The agent is leaving out a required field and recovering. Fixing that in the prompt or tool description would lower the rate, and the scorecard's compare command would show it.</p></div></div>
+    <div class="item"><span class="pill warn">check</span><div><h3>Coverage at the gate averages 78%</h3><p>Questions-to-gate and coverage-at-gate are tracked, not targeted. An average under 100% suggests some matrix sessions ended before reaching full coverage, for example the adversarial or <code>always_idk</code> runs. Confirm which ones.</p></div></div>
+    <div class="item"><span class="pill mute">stub</span><div><h3>Linear and Delivery are stubs</h3><p>By design for v1. Case 12 passes against the stub. Real integration would need its own tasks, and the approval gate and <code>scope_hash</code> replay protection are already tested against the stubs.</p></div></div>
+    <div class="item"><span class="pill mute">risk</span><div><h3>Live-model tests are not part of the routine run</h3><p>The last full <code>live_model</code> run predates T35. Re-run it once, one test at a time, before trusting it. Repeated flakiness on combined runs is documented in <code>NEXT_SESSION.md</code>.</p></div></div>
+    <div class="item"><span class="pill mute">risk</span><div><h3>Single writer only</h3><p>The event log lock is a thread lock, not an OS file lock. Two <code>ppa</code> processes on one project can corrupt event IDs. Fine for a one-user CLI, a real gap for any shared use.</p></div></div>
+  </div>
+</section>
+<footer>Sources: <code>README.md</code>, <code>tasks/readme.md</code>, <code>tasks/t34_*.md</code>, <code>NEXT_SESSION.md</code>, <code>tests/eval/baseline.json</code>, <code>docs/decisions/model_tier.md</code>.</footer>
+</div>
+
+<script>
+var STEPS=[
+{t:"Start a project",s:"ppa new",h:"<p>Creates a project folder with its own local git repo and one seed requirement. The ledger-contents notice prints every time.</p><pre>$ ppa new \"Invoice Automation\" --seed-requirement \"freelancers need to send clients a branded invoice from the app\"\nCreated project invoice-automation at projects\\invoice-automation\n\nthe ledger stores your requirements and answers verbatim, including client\ninformation; it is a local git repo; add a remote only if that is appropriate\nfor this project</pre><div class='under'>Test it: the lifecycle tests in <code>tests/test_ledger/</code> cover project creation, git init and the audit file.</div>"},
+{t:"Answer a question",s:"ppa chat",h:"<p>Discovery starts in intake mode, then clarify. Each pending question is a card with a reason, options and a default. You can answer, or say <code>I don't know</code>, <code>decide later</code>, or <code>not relevant: &lt;reason&gt;</code>.</p><pre>How many freelancers will use this at launch — a handful, or hundreds?\n  why: determines whether invoice generation needs to be async/queued or can run inline\n  options: Under 20, 20-200, 200+\n  default: Under 20 (most Coditas client pilots start small)\n  (you can also say: I don't know / decide later / not relevant)\n&gt;</pre><div class='under'>Under the hood: the orchestrator opens a transaction, the agent calls tools, each call passes the permission gate and validation, and writes land in <code>events.ndjson</code>. Eval cases 13 and 14 cover the two special answers.</div>"},
+{t:"Read the board",s:"ppa status",h:"<p>After a few rounds: one confirmed requirement, one open decision, one client-owned unknown. Coverage is 1 of 9 critical areas, so the gate is closed.</p><pre>PLANNING STATUS — Invoice Automation     Session 2 · 2026-10-01 05:43\n\nCoverage  1/9 critical █░░░░░░░░░░░   all areas 2/12   Round 0 · INTAKE\n  critical  ✓ scope_in   ○ problem   ○ users   ○ scope_out ...\n\nLedger\n  Requirements 1 (1 confirmed)   Decisions 1 (1 open)   Unknowns 1 (1 blocking)\n\nReadiness   NOT READY — 17 blockers\n  🔴 critical area 'constraints' is UNTOUCHED ...\n  🔴 the user has not yet approved the REVIEW summary\n\nOpen items due within 3 days: 1      Overdue: 0</pre><div class='under'>Everything on this board is recomputed from the event log each time, so it is the same after a crash or a week away.</div>"},
+{t:"Chase open items",s:"--items",h:"<p>Narrows the board to readiness plus every open item, with owner and due date. Your items say <code>owner: you</code>; the ones to send out say <code>owner: client</code>.</p><pre>$ ppa status invoice-automation --items\nOpen items\n  ⚠  DEC-001  Which PDF rendering lib…  owner: you     due Oct 2\n  🔴  UNK-001  Does the client's brand…  owner: client</pre>"},
+{t:"Send the client questions",s:"client-questions",h:"<p>Turns every client-owned open item into a questionnaire you can paste into an email.</p><pre>$ ppa client-questions invoice-automation\n# Coditas Default — Questions for you\n\n## In scope\n\n### Does the client's brand book require a specific invoice layout?\n- Why it matters: affects the PDF template's structure\n- What we'll assume until you confirm: not yet recorded\n- Blocking: Yes</pre>"},
+{t:"Ask why and what changed",s:"why · history",h:"<p><code>why</code> explains a decision and shows which agent, tool and workflow state touched it. <code>history</code> lists every recorded change to one entity, oldest first.</p><pre>$ ppa why invoice-automation DEC-001\n# DEC-001: Which PDF rendering library should invoices use?\n**Status:** OPEN\n**Provenance (agent · tool · workflow state):**\n- 2026-10-01 05:43 · discovery used `manage_decision` (write) in DISCOVERY — ok</pre>"},
+{t:"Check cost",s:"--cost",h:"<p>Token and cost breakdown per agent and per mode, folded from <code>turn.cost_recorded</code> events. It reads recorded numbers, never a live estimate.</p><pre>$ ppa status invoice-automation --cost\nTotal       2 turns · $0.0699 · ~4000 tokens\nBy agent:   discovery  2 turns · $0.0699\nBy mode:    clarify 1 turn · $0.0287   intake 1 turn · $0.0412</pre>"},
+{t:"Ship or override",s:"force-ready",h:"<p>When every blocker clears, the gate opens. To ship earlier, <code>force-ready</code> overrides it. The skipped blockers and your reason are recorded.</p><pre>$ ppa force-ready invoice-automation --reason \"shipping a thin slice, rest tracked outside the ledger\"\nReadiness gate overridden. shipping a thin slice, rest tracked outside the ledger</pre><div class='under'>Not built: <code>ppa report</code>, which should write the final structured report. See What's left.</div>"}
+];
+var CASES=[
+[1,"Correct tool selection","Right tool, first try","live"],
+[2,"Wrong-tool attempt","PERMISSION or BUSINESS reject; body never runs",""],
+[3,"Ambiguous description","Disambiguated by do_not_use_when","live"],
+[4,"Validation error","CORRECT_AND_RETRY; corrected request succeeds",""],
+[5,"Transient failure","Retried within budget, succeeds",""],
+[6,"Permission failure","Rejected, routed, not retried",""],
+[7,"Business or workflow failure","Workflow change, not retry",""],
+[8,"Empty successful result","success=True, result_count=0, agent continues",""],
+[9,"Partial subagent failure","Partials preserved and propagated",""],
+[10,"Retry exhaustion","Bounded, escalates with structure",""],
+[11,"Invalid state transition","Rejected, naming the blocking rule",""],
+[12,"Linear creation before approval","BUSINESS reject (passes against stubs)",""],
+[13,"\"I don't know\"","Classified, routed, no loop","live"],
+[14,"\"Decide later\"","DEC with dates, owner, current assumption","live"],
+[15,"Requirement version change","New version, impact report, gate recomputed",""],
+[16,"Secret pasted into an answer","Redacted before append; absent from events, audit and git",""],
+[17,"Irreversible action without approval","BUSINESS reject, nothing created",""],
+[18,"Approval replayed after story set changed","scope_hash mismatch, reject",""]
+];
+(function(){
+  var steps=document.getElementById('steps'),panel=document.getElementById('panel');
+  function show(i){
+    var b=steps.children;
+    for(var k=0;k<b.length;k++){b[k].setAttribute('aria-selected',k===i?'true':'false');}
+    panel.innerHTML='<h3 style="font-size:17px;margin-bottom:8px">'+(i+1)+'. '+STEPS[i].t+'</h3>'+STEPS[i].h;
+  }
+  STEPS.forEach(function(s,i){
+    var b=document.createElement('button');
+    b.type='button';b.setAttribute('role','tab');
+    b.innerHTML=(i+1)+'. '+s.t+'<small class="mono">'+s.s+'</small>';
+    b.addEventListener('click',function(){show(i)});
+    steps.appendChild(b);
+  });
+  show(0);
+  var tb=document.getElementById('cases');
+  CASES.forEach(function(c){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td class="n">'+c[0]+'</td><td>'+c[1]+'</td><td>'+c[2]+'</td><td>'+(c[3]?'<span class="pill warn">live model</span>':'<span class="pill ok">no model</span>')+'</td>';
+    tb.appendChild(tr);
+  });
+})();
+</script>

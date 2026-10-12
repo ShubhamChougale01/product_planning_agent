@@ -1,6 +1,7 @@
 # Next session — pick up here
 
-**Branch:** `blockers-add-fixed-by-column`, tracking `origin/blockers-add-fixed-by-column`.
+**Branch:** `main`, tracking `origin/main`. The `blockers-add-fixed-by-column` work (T07–T35) is
+fully merged — `main` is the one line of development.
 
 **The 35-task board is complete.** T35 (`completed_tasks/t35_hardening_and_documentation.md`) was
 the last task and landed this session. `tasks/readme.md`'s board shows all 35 boxes ticked;
@@ -46,8 +47,7 @@ record for full reasoning — this is just the map):
   from T34/T01. `tasks/readme.md`'s open-decisions table now links all three.
 
 **How to resume, if there's ever a T36 or a new phase:**
-1. Confirm you're on `blockers-add-fixed-by-column` (`git status`) and it's up to date with
-   `origin/blockers-add-fixed-by-column`.
+1. Confirm you're on `main` (`git status`) and it's up to date with `origin/main`.
 2. Set up (or activate) `.venv/` if this is a fresh worktree — `.venv/` is gitignored, so a new
    worktree needs `python -m venv .venv && .venv/Scripts/python.exe -m pip install -e ".[dev]"`
    before anything will run (from inside `product_planning_agent/`).
